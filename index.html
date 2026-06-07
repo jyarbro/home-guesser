@@ -114,6 +114,13 @@
             document.getElementById('status').textContent = msg;
         }
 
+        const HEAT_OPTIONS = {
+            radius: 25,
+            blur: 18,
+            maxZoom: 17,
+            gradient: { 0.2: '#3333cc', 0.4: '#00aaff', 0.6: '#00ffaa', 0.8: '#ffff00', 1.0: '#ff4422' }
+        };
+
         async function startSearch() {
             const username = document.getElementById('username').value.trim();
             if (!username) return;
@@ -131,22 +138,42 @@
                 heatLayer = null;
             }
 
+            const seen = new Set();
+            const points = [];
+            let boundsSet = false;
+
             try {
-                const points = await fetchAllChangesets(username, signal);
+                for await (const page of changesetPages(username, signal)) {
+                    for (const cs of page) {
+                        if (seen.has(cs.id)) continue;
+                        seen.add(cs.id);
+                        if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null) {
+                            points.push([(cs.min_lat + cs.max_lat) / 2, (cs.min_lon + cs.max_lon) / 2]);
+                        }
+                    }
+
+                    if (points.length === 0) continue;
+
+                    if (!heatLayer) {
+                        heatLayer = L.heatLayer(points, HEAT_OPTIONS).addTo(map);
+                    } else {
+                        heatLayer.setLatLngs(points);
+                    }
+
+                    if (!boundsSet) {
+                        map.fitBounds(L.latLngBounds(points), { padding: [30, 30], maxZoom: 12 });
+                        boundsSet = true;
+                    }
+
+                    setStatus(`Loading "${username}"… ${points.length.toLocaleString()} changesets so far`);
+                }
+
                 if (signal.aborted) return;
 
                 if (points.length === 0) {
                     setStatus(`No geolocated changesets found for "${username}".`);
                 } else {
-                    heatLayer = L.heatLayer(points, {
-                        radius: 25,
-                        blur: 18,
-                        maxZoom: 17,
-                        gradient: { 0.2: '#3333cc', 0.4: '#00aaff', 0.6: '#00ffaa', 0.8: '#ffff00', 1.0: '#ff4422' }
-                    }).addTo(map);
-
-                    map.fitBounds(L.latLngBounds(points), { padding: [30, 30], maxZoom: 12 });
-                    setStatus(`Loaded ${points.length.toLocaleString()} changesets for "${username}".`);
+                    setStatus(`Done — ${points.length.toLocaleString()} changesets loaded for "${username}".`);
                 }
             } catch (err) {
                 if (err.name === 'AbortError') return;
@@ -159,41 +186,24 @@
             }
         }
 
-        async function fetchAllChangesets(username, signal) {
-            const seen = new Set();
-            const points = [];
-            const MAX_PAGES = 100; // cap at 10,000 changesets
-
+        async function* changesetPages(username, signal) {
             let params = `display_name=${encodeURIComponent(username)}&limit=100`;
 
-            for (let page = 0; page < MAX_PAGES; page++) {
-                if (signal.aborted) break;
-
-                setStatus(`Fetching changesets for "${username}"… (${points.length.toLocaleString()} loaded)`);
+            while (true) {
+                if (signal.aborted) return;
 
                 const resp = await fetch(
                     `https://api.openstreetmap.org/api/0.6/changesets.json?${params}`,
                     { signal }
                 );
 
-                if (!resp.ok) {
-                    throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
-                }
+                if (!resp.ok) throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
 
                 const { changesets = [] } = await resp.json();
 
-                for (const cs of changesets) {
-                    if (seen.has(cs.id)) continue;
-                    seen.add(cs.id);
-                    if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null) {
-                        points.push([
-                            (cs.min_lat + cs.max_lat) / 2,
-                            (cs.min_lon + cs.max_lon) / 2
-                        ]);
-                    }
-                }
+                yield changesets;
 
-                if (changesets.length < 100) break;
+                if (changesets.length < 100) return;
 
                 // Advance cursor: 1 second before the oldest created_at in this page
                 // (changesets are returned newest-first, so last entry is oldest)
@@ -201,8 +211,6 @@
                 oldest.setSeconds(oldest.getSeconds() - 1);
                 params = `display_name=${encodeURIComponent(username)}&limit=100&time=${encodeURIComponent(oldest.toISOString())}`;
             }
-
-            return points;
         }
 
         document.getElementById('username').addEventListener('keydown', e => {
