@@ -26,7 +26,6 @@
             border-bottom: 1px solid #252550;
             flex-shrink: 0;
         }
-
         #toolbar h1 {
             font-size: 0.95rem;
             font-weight: 600;
@@ -34,9 +33,14 @@
             white-space: nowrap;
         }
 
-        #username {
+        /* Username input + history dropdown */
+        #username-wrap {
+            position: relative;
             flex: 1;
             max-width: 300px;
+        }
+        #username {
+            width: 100%;
             padding: 7px 12px;
             border: 1px solid #303068;
             border-radius: 6px;
@@ -48,6 +52,69 @@
         }
         #username::placeholder { color: #50508a; }
         #username:focus { border-color: #6868cc; }
+        #username-wrap.open #username {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-color: #1c1c40;
+        }
+
+        #history-list {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0; right: 0;
+            background: #1e1e42;
+            border: 1px solid #303068;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            z-index: 2000;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        #username-wrap.open #history-list { display: block; }
+
+        .hist-item {
+            display: flex;
+            align-items: center;
+            padding: 0 6px 0 0;
+            transition: background 0.1s;
+        }
+        .hist-item:hover { background: #28285a; }
+        .hist-name {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 0.88rem;
+            color: #c0c0ee;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .hist-meta {
+            font-size: 0.72rem;
+            color: #50509a;
+            white-space: nowrap;
+            padding: 0 6px;
+        }
+        .hist-refresh, .hist-delete {
+            padding: 4px 6px;
+            background: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: color 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
+        .hist-refresh { color: #50509a; }
+        .hist-refresh:hover { color: #9090cc; background: #303068; }
+        .hist-delete { color: #50509a; }
+        .hist-delete:hover { color: #cc4444; background: #3a1818; }
+        .hist-empty {
+            padding: 10px 12px;
+            font-size: 0.82rem;
+            color: #50509a;
+        }
 
         .tbtn {
             padding: 7px 16px;
@@ -64,24 +131,18 @@
         }
         .tbtn:hover:not(:disabled) { background: #5555cc; }
         .tbtn:disabled { background: #252550; color: #50508a; cursor: default; }
-
         #panel-btn { margin-left: auto; background: #252550; }
         #panel-btn:hover:not(:disabled) { background: #303068 !important; }
         #panel-btn.active { background: #4545bb !important; }
 
-        /* ── Map wrapper (panel anchors here) ── */
-        #map-wrap {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-        }
+        /* ── Map wrapper ── */
+        #map-wrap { flex: 1; position: relative; overflow: hidden; }
         #map { width: 100%; height: 100%; }
 
         /* ── Slide-out panel ── */
         #panel {
             position: absolute;
-            top: 0;
-            right: 0;
+            top: 0; right: 0;
             width: 264px;
             height: 100%;
             background: rgba(11, 11, 26, 0.97);
@@ -93,106 +154,41 @@
         }
         #panel.open { transform: translateX(0); }
 
-        .psec {
-            padding: 14px 16px;
-            border-bottom: 1px solid #1c1c3a;
-        }
+        .psec { padding: 14px 16px; border-bottom: 1px solid #1c1c3a; }
         .psec h3 {
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 1.2px;
-            text-transform: uppercase;
-            color: #4444aa;
-            margin-bottom: 14px;
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 1.2px; text-transform: uppercase;
+            color: #4444aa; margin-bottom: 14px;
         }
+        .crow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .crow label { font-size: 0.82rem; color: #9090cc; }
+        .crow .val { font-size: 0.78rem; color: #6868aa; min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
 
-        .crow {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 4px;
-        }
-        .crow label {
-            font-size: 0.82rem;
-            color: #9090cc;
-        }
-        .crow .val {
-            font-size: 0.78rem;
-            color: #6868aa;
-            min-width: 40px;
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-
-        input[type=range] {
-            width: 100%;
-            margin: 4px 0 12px;
-            accent-color: #6868cc;
-            cursor: pointer;
-        }
-
+        input[type=range] { width: 100%; margin: 4px 0 12px; accent-color: #6868cc; cursor: pointer; }
         select {
-            width: 100%;
-            padding: 6px 8px;
-            background: #1a1a3a;
-            color: #b0b0ee;
-            border: 1px solid #303068;
-            border-radius: 5px;
-            font-size: 0.85rem;
-            outline: none;
-            cursor: pointer;
-            margin-bottom: 8px;
+            width: 100%; padding: 6px 8px;
+            background: #1a1a3a; color: #b0b0ee;
+            border: 1px solid #303068; border-radius: 5px;
+            font-size: 0.85rem; outline: none; cursor: pointer; margin-bottom: 8px;
         }
+        #grad-preview { height: 8px; border-radius: 4px; margin-bottom: 4px; }
 
-        #grad-preview {
-            height: 8px;
-            border-radius: 4px;
-            margin-bottom: 4px;
-        }
-
-        /* Toggle switch */
-        .trow {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 14px;
-        }
+        .trow { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
         .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
         .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .ttrack {
-            position: absolute;
-            inset: 0;
-            background: #252550;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: background 0.18s;
-        }
-        .ttrack::after {
-            content: '';
-            position: absolute;
-            width: 14px; height: 14px;
-            background: #6060aa;
-            border-radius: 50%;
-            top: 3px; left: 3px;
-            transition: left 0.18s, background 0.18s;
-        }
+        .ttrack { position: absolute; inset: 0; background: #252550; border-radius: 20px; cursor: pointer; transition: background 0.18s; }
+        .ttrack::after { content: ''; position: absolute; width: 14px; height: 14px; background: #6060aa; border-radius: 50%; top: 3px; left: 3px; transition: left 0.18s, background 0.18s; }
         .toggle input:checked + .ttrack { background: #4545bb; }
         .toggle input:checked + .ttrack::after { left: 19px; background: #fff; }
         .tlabel { font-size: 0.84rem; color: #9090cc; }
 
         /* ── Status bar ── */
         #status {
-            padding: 5px 16px;
-            font-size: 0.78rem;
-            background: #12122a;
-            color: #70709a;
+            padding: 5px 16px; font-size: 0.78rem;
+            background: #12122a; color: #70709a;
             border-top: 1px solid #252550;
-            min-height: 26px;
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
+            min-height: 26px; display: flex; align-items: center; flex-shrink: 0;
         }
-
         .leaflet-container { background: #1a1a3a; }
     </style>
 </head>
@@ -200,52 +196,32 @@
 
 <div id="toolbar">
     <h1>OSM Edit Heatmap</h1>
-    <input id="username" type="text" placeholder="Enter OSM username…" autocomplete="off" spellcheck="false" />
+    <div id="username-wrap">
+        <input id="username" type="text" placeholder="Enter OSM username…"
+               autocomplete="off" spellcheck="false" />
+        <div id="history-list"></div>
+    </div>
     <button id="search-btn" class="tbtn" onclick="startSearch()">Search</button>
-    <button id="panel-btn" class="tbtn" onclick="togglePanel()">Controls</button>
+    <button id="panel-btn"  class="tbtn" onclick="togglePanel()">Controls</button>
 </div>
 
 <div id="map-wrap">
     <div id="map"></div>
-
     <div id="panel">
-
         <div class="psec">
             <h3>Map</h3>
-            <div class="crow">
-                <label for="tile-opacity">Tile opacity</label>
-                <span class="val" id="v-tile-opacity">100%</span>
-            </div>
-            <input type="range" id="tile-opacity" min="0" max="100" value="100"
-                   oninput="onTileOpacity(this.value)" />
+            <div class="crow"><label>Tile opacity</label><span class="val" id="v-tile-opacity">100%</span></div>
+            <input type="range" id="tile-opacity" min="0" max="100" value="100" oninput="onTileOpacity(this.value)" />
         </div>
-
         <div class="psec">
             <h3>Heatmap</h3>
-            <div class="crow">
-                <label for="heat-opacity">Opacity</label>
-                <span class="val" id="v-heat-opacity">80%</span>
-            </div>
-            <input type="range" id="heat-opacity" min="0" max="100" value="80"
-                   oninput="onHeatOpacity(this.value)" />
-
-            <div class="crow">
-                <label for="heat-radius">Radius</label>
-                <span class="val" id="v-heat-radius">25</span>
-            </div>
-            <input type="range" id="heat-radius" min="5" max="60" value="25"
-                   oninput="onHeatRadius(this.value)" />
-
-            <div class="crow">
-                <label for="heat-blur">Blur</label>
-                <span class="val" id="v-heat-blur">18</span>
-            </div>
-            <input type="range" id="heat-blur" min="1" max="50" value="18"
-                   oninput="onHeatBlur(this.value)" />
-
-            <div class="crow" style="margin-bottom:6px">
-                <label>Color scheme</label>
-            </div>
+            <div class="crow"><label>Opacity</label><span class="val" id="v-heat-opacity">80%</span></div>
+            <input type="range" id="heat-opacity" min="0" max="100" value="80" oninput="onHeatOpacity(this.value)" />
+            <div class="crow"><label>Radius</label><span class="val" id="v-heat-radius">25</span></div>
+            <input type="range" id="heat-radius" min="5" max="60" value="25" oninput="onHeatRadius(this.value)" />
+            <div class="crow"><label>Blur</label><span class="val" id="v-heat-blur">18</span></div>
+            <input type="range" id="heat-blur" min="1" max="50" value="18" oninput="onHeatBlur(this.value)" />
+            <div class="crow" style="margin-bottom:6px"><label>Color scheme</label></div>
             <select id="color-scheme" onchange="onColorScheme(this.value)">
                 <option value="Classic">Classic</option>
                 <option value="Plasma">Plasma</option>
@@ -257,7 +233,6 @@
             </select>
             <div id="grad-preview"></div>
         </div>
-
         <div class="psec">
             <h3>Hot Zones</h3>
             <div class="trow">
@@ -267,22 +242,11 @@
                 </label>
                 <span class="tlabel">Show centroids</span>
             </div>
-
-            <div class="crow">
-                <label for="hz-threshold">Min changesets</label>
-                <span class="val" id="v-hz-threshold">5</span>
-            </div>
-            <input type="range" id="hz-threshold" min="1" max="100" value="5"
-                   oninput="onThreshold(this.value)" />
-
-            <div class="crow">
-                <label for="hz-grid">Grid size</label>
-                <span class="val" id="v-hz-grid">1.0°</span>
-            </div>
-            <input type="range" id="hz-grid" min="1" max="30" value="10"
-                   oninput="onGridSize(this.value)" />
+            <div class="crow"><label>Min changesets</label><span class="val" id="v-hz-threshold">5</span></div>
+            <input type="range" id="hz-threshold" min="1" max="100" value="5" oninput="onThreshold(this.value)" />
+            <div class="crow"><label>Grid size</label><span class="val" id="v-hz-grid">1.0°</span></div>
+            <input type="range" id="hz-grid" min="1" max="30" value="10" oninput="onGridSize(this.value)" />
         </div>
-
     </div>
 </div>
 
@@ -291,251 +255,355 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
-    // ── Gradient presets ─────────────────────────────────────────────────────
-    const GRADIENTS = {
-        Classic: { 0.2: '#3333cc', 0.4: '#00aaff', 0.6: '#00ffaa', 0.8: '#ffff00', 1.0: '#ff4422' },
-        Plasma:  { 0.0: '#2d004f', 0.25: '#7e03a8', 0.5: '#cc4778', 0.75: '#f89441', 1.0: '#fbf521' },
-        Inferno: { 0.0: '#200001', 0.25: '#57106e', 0.5: '#bc3754', 0.75: '#f98e09', 1.0: '#fcffa4' },
-        Hot:     { 0.0: '#1a0000', 0.35: '#dd1100', 0.7:  '#ffaa00', 1.0: '#ffffff' },
-        Cool:    { 0.2: '#001199', 0.5: '#0077ff', 0.8: '#00eeff',  1.0: '#ffffff' },
-        Neon:    { 0.0: '#0d0020', 0.25: '#aa00ff', 0.5: '#ff0066', 0.75: '#ff9900', 1.0: '#ffff00' },
-        Viridis: { 0.0: '#440154', 0.25: '#31688e', 0.5: '#35b779', 0.75: '#90d743', 1.0: '#fde725' },
-    };
+// ── localStorage helpers ──────────────────────────────────────────────────────
+// Per-user record: { changesets: [{id,lat,lon},...], fetchedAt: ISO string }
+// Index:           osm_history = ["username", ...]  (most recent first)
 
-    // ── Map setup ────────────────────────────────────────────────────────────
-    const map = L.map('map').setView([20, 0], 2);
+const STORE_PREFIX = 'osm_user:';
+const HISTORY_KEY  = 'osm_history';
 
-    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-    }).addTo(map);
+function userKey(name) { return STORE_PREFIX + name.toLowerCase(); }
 
-    // Dedicated pane for the heatmap so opacity is independent of markers
-    const heatPane = map.createPane('heatPane');
-    heatPane.style.zIndex = 400;
+function loadUser(name) {
+    try { const r = localStorage.getItem(userKey(name)); return r ? JSON.parse(r) : null; }
+    catch { return null; }
+}
 
-    // ── State ────────────────────────────────────────────────────────────────
-    let heatLayer    = null;
-    let hotZoneGroup = L.layerGroup().addTo(map);
-    let activeAbort  = null;
-    let allPoints    = [];
+function saveUser(name, data) {
+    try { localStorage.setItem(userKey(name), JSON.stringify(data)); }
+    catch (e) { console.warn('localStorage quota exceeded:', e); }
+}
 
-    const ui = {
-        tileOpacity:  1.0,
-        heatOpacity:  0.8,
-        heatRadius:   25,
-        heatBlur:     18,
-        colorScheme:  'Classic',
-        hotZonesOn:   false,
-        threshold:    5,
-        gridDeg:      1.0,
-    };
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch { return []; }
+}
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-    function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function saveHistory(list) { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
 
-    function togglePanel() {
-        const panel = document.getElementById('panel');
-        const btn   = document.getElementById('panel-btn');
-        const open  = panel.classList.toggle('open');
-        btn.classList.toggle('active', open);
+function touchHistory(name) {
+    const lower = name.toLowerCase();
+    saveHistory([lower, ...loadHistory().filter(u => u !== lower)]);
+}
+
+function removeUser(name) {
+    const lower = name.toLowerCase();
+    saveHistory(loadHistory().filter(u => u !== lower));
+    localStorage.removeItem(userKey(lower));
+}
+
+// ── Gradient presets ──────────────────────────────────────────────────────────
+const GRADIENTS = {
+    Classic: { 0.2: '#3333cc', 0.4: '#00aaff', 0.6: '#00ffaa', 0.8: '#ffff00', 1.0: '#ff4422' },
+    Plasma:  { 0.0: '#2d004f', 0.25: '#7e03a8', 0.5: '#cc4778', 0.75: '#f89441', 1.0: '#fbf521' },
+    Inferno: { 0.0: '#200001', 0.25: '#57106e', 0.5: '#bc3754', 0.75: '#f98e09', 1.0: '#fcffa4' },
+    Hot:     { 0.0: '#1a0000', 0.35: '#dd1100', 0.7: '#ffaa00', 1.0: '#ffffff' },
+    Cool:    { 0.2: '#001199', 0.5: '#0077ff', 0.8: '#00eeff',  1.0: '#ffffff' },
+    Neon:    { 0.0: '#0d0020', 0.25: '#aa00ff', 0.5: '#ff0066', 0.75: '#ff9900', 1.0: '#ffff00' },
+    Viridis: { 0.0: '#440154', 0.25: '#31688e', 0.5: '#35b779', 0.75: '#90d743', 1.0: '#fde725' },
+};
+
+// ── Map setup ─────────────────────────────────────────────────────────────────
+const map       = L.map('map').setView([20, 0], 2);
+const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+}).addTo(map);
+
+const heatPane = map.createPane('heatPane');
+heatPane.style.zIndex = 400;
+
+// ── App state ─────────────────────────────────────────────────────────────────
+let heatLayer    = null;
+let hotZoneGroup = L.layerGroup().addTo(map);
+let activeAbort  = null;
+let allPoints    = [];  // [[lat, lon], ...]
+
+const ui = {
+    tileOpacity: 1.0, heatOpacity: 0.8, heatRadius: 25, heatBlur: 18,
+    colorScheme: 'Classic', hotZonesOn: false, threshold: 5, gridDeg: 1.0,
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+function togglePanel() {
+    const open = document.getElementById('panel').classList.toggle('open');
+    document.getElementById('panel-btn').classList.toggle('active', open);
+}
+
+function updateGradPreview(scheme) {
+    const stops = Object.entries(GRADIENTS[scheme])
+        .sort(([a], [b]) => a - b)
+        .map(([p, c]) => `${c} ${(p * 100).toFixed(0)}%`)
+        .join(', ');
+    document.getElementById('grad-preview').style.background = `linear-gradient(to right, ${stops})`;
+}
+
+// ── History dropdown ──────────────────────────────────────────────────────────
+function renderHistory(filter = '') {
+    const items = loadHistory().filter(u => !filter || u.includes(filter.toLowerCase()));
+    const list  = document.getElementById('history-list');
+    if (items.length === 0) {
+        list.innerHTML = `<div class="hist-empty">${filter ? 'No matches.' : 'No saved users yet.'}</div>`;
+        return;
     }
+    list.innerHTML = items.map(u => {
+        const d    = loadUser(u);
+        const meta = d ? `${d.changesets.length.toLocaleString()} cs &middot; ${new Date(d.fetchedAt).toLocaleDateString()}` : '';
+        return `<div class="hist-item">
+            <span class="hist-name" onclick="selectHistUser('${u}')">${u}</span>
+            <span class="hist-meta">${meta}</span>
+            <button class="hist-refresh" title="Check for new changesets" onclick="histRefresh('${u}',event)">&#8635;</button>
+            <button class="hist-delete"  title="Remove from history"      onclick="histDelete('${u}',event)">&#x2715;</button>
+        </div>`;
+    }).join('');
+}
 
-    function updateGradPreview(scheme) {
-        const stops = Object.entries(GRADIENTS[scheme])
-            .sort(([a], [b]) => a - b)
-            .map(([p, c]) => `${c} ${(p * 100).toFixed(0)}%`)
-            .join(', ');
-        document.getElementById('grad-preview').style.background =
-            `linear-gradient(to right, ${stops})`;
-    }
+function openHistory() {
+    renderHistory(document.getElementById('username').value.trim());
+    document.getElementById('username-wrap').classList.add('open');
+}
 
-    // ── Control handlers ─────────────────────────────────────────────────────
-    function onTileOpacity(v) {
-        ui.tileOpacity = v / 100;
-        document.getElementById('v-tile-opacity').textContent = `${v}%`;
-        tileLayer.setOpacity(ui.tileOpacity);
-    }
+function closeHistory() { document.getElementById('username-wrap').classList.remove('open'); }
 
-    function onHeatOpacity(v) {
-        ui.heatOpacity = v / 100;
-        document.getElementById('v-heat-opacity').textContent = `${v}%`;
-        heatPane.style.opacity = ui.heatOpacity;
-    }
+function selectHistUser(name) {
+    document.getElementById('username').value = name;
+    closeHistory();
+    startSearch();
+}
 
-    function onHeatRadius(v) {
-        ui.heatRadius = +v;
-        document.getElementById('v-heat-radius').textContent = v;
-        if (heatLayer) heatLayer.setOptions({ radius: ui.heatRadius });
-    }
+function histRefresh(name, e) {
+    e.stopPropagation();
+    document.getElementById('username').value = name;
+    closeHistory();
+    startSearch({ refresh: true });
+}
 
-    function onHeatBlur(v) {
-        ui.heatBlur = +v;
-        document.getElementById('v-heat-blur').textContent = v;
-        if (heatLayer) heatLayer.setOptions({ blur: ui.heatBlur });
-    }
+function histDelete(name, e) {
+    e.stopPropagation();
+    removeUser(name);
+    renderHistory(document.getElementById('username').value.trim());
+}
 
-    function onColorScheme(name) {
-        ui.colorScheme = name;
-        updateGradPreview(name);
-        if (heatLayer) heatLayer.setOptions({ gradient: GRADIENTS[name] });
-    }
+document.getElementById('username').addEventListener('focus', openHistory);
+document.getElementById('username').addEventListener('input', () =>
+    renderHistory(document.getElementById('username').value.trim())
+);
+document.addEventListener('click', e => {
+    if (!document.getElementById('username-wrap').contains(e.target)) closeHistory();
+});
 
-    function onHotZoneToggle(checked) {
-        ui.hotZonesOn = checked;
-        checked ? renderHotZones() : hotZoneGroup.clearLayers();
-    }
-
-    function onThreshold(v) {
-        ui.threshold = +v;
-        document.getElementById('v-hz-threshold').textContent = v;
-        if (ui.hotZonesOn) renderHotZones();
-    }
-
-    function onGridSize(v) {
-        ui.gridDeg = v / 10;
-        document.getElementById('v-hz-grid').textContent = ui.gridDeg.toFixed(1) + '°';
-        if (ui.hotZonesOn) renderHotZones();
-    }
-
-    // ── Hot zone rendering ───────────────────────────────────────────────────
-    function renderHotZones() {
-        hotZoneGroup.clearLayers();
-        if (!ui.hotZonesOn || allPoints.length === 0) return;
-
-        const counts = new Map();
-        for (const [lat, lon] of allPoints) {
-            const key = `${Math.floor(lat / ui.gridDeg)},${Math.floor(lon / ui.gridDeg)}`;
-            counts.set(key, (counts.get(key) || 0) + 1);
-        }
-
-        let maxCount = 0;
-        for (const [key, count] of counts) {
-            if (count < ui.threshold) continue;
-            maxCount = Math.max(maxCount, count);
-            const [r, c] = key.split(',').map(Number);
-            L.circleMarker(
-                [(r + 0.5) * ui.gridDeg, (c + 0.5) * ui.gridDeg],
-                {
-                    radius: Math.max(5, Math.min(20, Math.sqrt(count) * 1.8)),
-                    color: '#cc1100',
-                    fillColor: '#ff3322',
-                    fillOpacity: 0.75,
-                    weight: 1.5,
-                }
-            ).bindTooltip(`${count} changesets`).addTo(hotZoneGroup);
-        }
-
-        // Expand threshold slider ceiling to match data
-        if (maxCount > 0) {
-            const slider = document.getElementById('hz-threshold');
-            slider.max = Math.max(slider.max, maxCount);
-        }
-    }
-
-    // ── Search / streaming fetch ─────────────────────────────────────────────
-    async function startSearch() {
-        const username = document.getElementById('username').value.trim();
-        if (!username) return;
-
-        if (activeAbort) activeAbort.abort();
-        activeAbort = new AbortController();
-        const { signal } = activeAbort;
-
-        const btn = document.getElementById('search-btn');
-        btn.disabled = true;
-        btn.textContent = 'Loading…';
-
-        if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
-        hotZoneGroup.clearLayers();
-        allPoints = [];
-
-        const seen = new Set();
-        let boundsSet = false;
-
-        try {
-            for await (const page of changesetPages(username, signal)) {
-                for (const cs of page) {
-                    if (seen.has(cs.id)) continue;
-                    seen.add(cs.id);
-                    if (cs.min_lat != null && cs.max_lat != null &&
-                        cs.min_lon != null && cs.max_lon != null) {
-                        allPoints.push([
-                            (cs.min_lat + cs.max_lat) / 2,
-                            (cs.min_lon + cs.max_lon) / 2,
-                        ]);
-                    }
-                }
-
-                if (allPoints.length === 0) continue;
-
-                if (!heatLayer) {
-                    heatLayer = L.heatLayer(allPoints, {
-                        radius:   ui.heatRadius,
-                        blur:     ui.heatBlur,
-                        maxZoom:  17,
-                        gradient: GRADIENTS[ui.colorScheme],
-                        pane:     'heatPane',
-                    }).addTo(map);
-                    heatPane.style.opacity = ui.heatOpacity;
-                } else {
-                    heatLayer.setLatLngs(allPoints);
-                }
-
-                if (!boundsSet) {
-                    map.fitBounds(L.latLngBounds(allPoints), { padding: [30, 30], maxZoom: 12 });
-                    boundsSet = true;
-                }
-
-                setStatus(`Loading "${username}"… ${allPoints.length.toLocaleString()} changesets`);
-            }
-
-            if (signal.aborted) return;
-
-            if (allPoints.length === 0) {
-                setStatus(`No geolocated changesets found for "${username}".`);
-            } else {
-                renderHotZones();
-                setStatus(`Done — ${allPoints.length.toLocaleString()} changesets for "${username}".`);
-            }
-        } catch (err) {
-            if (err.name === 'AbortError') return;
-            setStatus(`Error: ${err.message}`);
-        } finally {
-            if (!signal.aborted) {
-                btn.disabled = false;
-                btn.textContent = 'Search';
-            }
-        }
-    }
-
-    async function* changesetPages(username, signal) {
-        let params = `display_name=${encodeURIComponent(username)}&limit=100`;
-        while (true) {
-            if (signal.aborted) return;
-            const resp = await fetch(
-                `https://api.openstreetmap.org/api/0.6/changesets.json?${params}`,
-                { signal }
-            );
-            if (!resp.ok) throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
-            const { changesets = [] } = await resp.json();
-            yield changesets;
-            if (changesets.length < 100) return;
-            // Advance cursor: 1 second before the oldest created_at in this page
-            // (changesets are returned newest-first, so last entry is oldest)
-            const oldest = new Date(changesets[changesets.length - 1].created_at);
-            oldest.setSeconds(oldest.getSeconds() - 1);
-            params = `display_name=${encodeURIComponent(username)}&limit=100&time=${encodeURIComponent(oldest.toISOString())}`;
-        }
-    }
-
-    document.getElementById('username').addEventListener('keydown', e => {
-        if (e.key === 'Enter') startSearch();
-    });
-
-    // Init
-    updateGradPreview(ui.colorScheme);
+// ── Control handlers ──────────────────────────────────────────────────────────
+function onTileOpacity(v) {
+    ui.tileOpacity = v / 100;
+    document.getElementById('v-tile-opacity').textContent = `${v}%`;
+    tileLayer.setOpacity(ui.tileOpacity);
+}
+function onHeatOpacity(v) {
+    ui.heatOpacity = v / 100;
+    document.getElementById('v-heat-opacity').textContent = `${v}%`;
     heatPane.style.opacity = ui.heatOpacity;
+}
+function onHeatRadius(v) {
+    ui.heatRadius = +v;
+    document.getElementById('v-heat-radius').textContent = v;
+    if (heatLayer) heatLayer.setOptions({ radius: ui.heatRadius });
+}
+function onHeatBlur(v) {
+    ui.heatBlur = +v;
+    document.getElementById('v-heat-blur').textContent = v;
+    if (heatLayer) heatLayer.setOptions({ blur: ui.heatBlur });
+}
+function onColorScheme(name) {
+    ui.colorScheme = name;
+    updateGradPreview(name);
+    if (heatLayer) heatLayer.setOptions({ gradient: GRADIENTS[name] });
+}
+function onHotZoneToggle(checked) {
+    ui.hotZonesOn = checked;
+    checked ? renderHotZones() : hotZoneGroup.clearLayers();
+}
+function onThreshold(v) {
+    ui.threshold = +v;
+    document.getElementById('v-hz-threshold').textContent = v;
+    if (ui.hotZonesOn) renderHotZones();
+}
+function onGridSize(v) {
+    ui.gridDeg = v / 10;
+    document.getElementById('v-hz-grid').textContent = ui.gridDeg.toFixed(1) + '°';
+    if (ui.hotZonesOn) renderHotZones();
+}
+
+// ── Hot zones ─────────────────────────────────────────────────────────────────
+function renderHotZones() {
+    hotZoneGroup.clearLayers();
+    if (!ui.hotZonesOn || allPoints.length === 0) return;
+    const counts = new Map();
+    for (const [lat, lon] of allPoints) {
+        const key = `${Math.floor(lat / ui.gridDeg)},${Math.floor(lon / ui.gridDeg)}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    let maxCount = 0;
+    for (const [key, count] of counts) {
+        if (count < ui.threshold) continue;
+        maxCount = Math.max(maxCount, count);
+        const [r, c] = key.split(',').map(Number);
+        L.circleMarker([(r + 0.5) * ui.gridDeg, (c + 0.5) * ui.gridDeg], {
+            radius: Math.max(5, Math.min(20, Math.sqrt(count) * 1.8)),
+            color: '#cc1100', fillColor: '#ff3322', fillOpacity: 0.75, weight: 1.5,
+        }).bindTooltip(`${count} changesets`).addTo(hotZoneGroup);
+    }
+    if (maxCount > 0) {
+        const s = document.getElementById('hz-threshold');
+        s.max   = Math.max(s.max, maxCount);
+    }
+}
+
+// ── Heatmap update ────────────────────────────────────────────────────────────
+function applyPoints(pts, fitView) {
+    allPoints = pts;
+    if (!heatLayer) {
+        heatLayer = L.heatLayer(pts, {
+            radius: ui.heatRadius, blur: ui.heatBlur, maxZoom: 17,
+            gradient: GRADIENTS[ui.colorScheme], pane: 'heatPane',
+        }).addTo(map);
+        heatPane.style.opacity = ui.heatOpacity;
+    } else {
+        heatLayer.setLatLngs(pts);
+    }
+    if (fitView && pts.length > 0) {
+        map.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 12 });
+    }
+}
+
+// ── Search orchestration ──────────────────────────────────────────────────────
+async function startSearch({ refresh = false } = {}) {
+    const username = document.getElementById('username').value.trim();
+    if (!username) return;
+    closeHistory();
+
+    if (activeAbort) activeAbort.abort();
+    activeAbort = new AbortController();
+    const { signal } = activeAbort;
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+
+    if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    hotZoneGroup.clearLayers();
+    allPoints = [];
+
+    try {
+        const cached = loadUser(username);
+
+        if (cached && !refresh) {
+            // Paint cached points immediately, then silently check for newer ones
+            const pts = cached.changesets.map(c => [c.lat, c.lon]);
+            applyPoints(pts, true);
+            setStatus(`Loaded ${pts.length.toLocaleString()} cached changesets for "${username}" — checking for new…`);
+            await appendNew(username, cached, signal);
+        } else {
+            await fetchFull(username, signal);
+        }
+
+        if (signal.aborted) return;
+        if (allPoints.length === 0) {
+            setStatus(`No geolocated changesets found for "${username}".`);
+        } else {
+            renderHotZones();
+            setStatus(`${refresh ? 'Refreshed' : 'Done'} — ${allPoints.length.toLocaleString()} changesets for "${username}".`);
+        }
+        touchHistory(username);
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        setStatus(`Error: ${err.message}`);
+    } finally {
+        if (!signal.aborted) { btn.disabled = false; btn.textContent = 'Search'; }
+    }
+}
+
+// Full fetch: stream all pages, persist when done
+async function fetchFull(username, signal) {
+    const seen = new Set();
+    const collected = [];  // {id, lat, lon}
+    let   boundsSet = false;
+
+    for await (const page of changesetPages(username, signal)) {
+        for (const cs of page) {
+            if (seen.has(cs.id)) continue;
+            seen.add(cs.id);
+            if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
+                collected.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
+        }
+        if (collected.length === 0) continue;
+        applyPoints(collected.map(c => [c.lat, c.lon]), !boundsSet);
+        if (!boundsSet) boundsSet = true;
+        setStatus(`Loading "${username}"… ${collected.length.toLocaleString()} changesets`);
+    }
+
+    if (!signal.aborted && collected.length > 0)
+        saveUser(username, { changesets: collected, fetchedAt: new Date().toISOString() });
+}
+
+// Incremental refresh: only fetch pages until we hit a changeset we already have
+async function appendNew(username, cached, signal) {
+    const knownIds = new Set(cached.changesets.map(c => c.id));
+    const added    = [];
+
+    for await (const page of changesetPages(username, signal)) {
+        let allKnown = true;
+        for (const cs of page) {
+            if (knownIds.has(cs.id)) continue;
+            allKnown = false;
+            if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
+                added.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
+        }
+        // Once we see a full page of already-known changesets, we're caught up
+        if (allKnown) break;
+    }
+
+    if (signal.aborted) return;
+
+    if (added.length > 0) {
+        const merged = [...added, ...cached.changesets];
+        saveUser(username, { changesets: merged, fetchedAt: new Date().toISOString() });
+        applyPoints(merged.map(c => [c.lat, c.lon]), false);
+        setStatus(`Found ${added.length} new changeset(s) for "${username}" — updating…`);
+    } else {
+        setStatus(`Up to date — ${cached.changesets.length.toLocaleString()} changesets for "${username}".`);
+    }
+}
+
+// ── Changeset page generator ──────────────────────────────────────────────────
+async function* changesetPages(username, signal) {
+    let params = `display_name=${encodeURIComponent(username)}&limit=100`;
+    while (true) {
+        if (signal.aborted) return;
+        const resp = await fetch(
+            `https://api.openstreetmap.org/api/0.6/changesets.json?${params}`, { signal }
+        );
+        if (!resp.ok) throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
+        const { changesets = [] } = await resp.json();
+        yield changesets;
+        if (changesets.length < 100) return;
+        // Advance cursor: 1 second before the oldest created_at in this page
+        // (changesets are returned newest-first, so last entry is oldest)
+        const oldest = new Date(changesets[changesets.length - 1].created_at);
+        oldest.setSeconds(oldest.getSeconds() - 1);
+        params = `display_name=${encodeURIComponent(username)}&limit=100&time=${encodeURIComponent(oldest.toISOString())}`;
+    }
+}
+
+document.getElementById('username').addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { closeHistory(); startSearch(); }
+    if (e.key === 'Escape') closeHistory();
+});
+
+// Init
+updateGradPreview(ui.colorScheme);
+heatPane.style.opacity = ui.heatOpacity;
 </script>
 </body>
 </html>
