@@ -4,6 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSM Edit Heatmap</title>
+
+    <!-- Console capture must run before any other script so all output is recorded -->
+    <script>
+    window.__debugEntries = [];
+    window.__debugErrorCount = 0;
+    (function () {
+        const orig = {};
+        ['log', 'info', 'warn', 'error'].forEach(level => {
+            orig[level] = console[level].bind(console);
+            console[level] = function (...args) {
+                orig[level](...args);
+                const text = args.map(a => {
+                    try { return (typeof a === 'object' && a !== null) ? JSON.stringify(a) : String(a); }
+                    catch { return '[unserializable]'; }
+                }).join(' ');
+                const entry = { level, text, t: new Date().toLocaleTimeString() };
+                window.__debugEntries.push(entry);
+                if (level === 'error') {
+                    window.__debugErrorCount++;
+                    const badge = document.getElementById('debug-badge');
+                    if (badge) { badge.textContent = window.__debugErrorCount; badge.style.display = 'flex'; }
+                }
+                if (window.__debugLogEl) window.__appendDebugEntry(entry);
+            };
+        });
+
+        window.addEventListener('securitypolicyviolation', e => {
+            console.error(`CSP blocked: ${e.blockedURI} (directive: ${e.violatedDirective})`);
+        });
+
+        window.addEventListener('unhandledrejection', e => {
+            console.error(`Unhandled rejection: ${e.reason}`);
+        });
+    })();
+    </script>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -190,6 +226,24 @@
         #panel-btn { margin-left: auto; background: #252550; }
         #panel-btn:hover:not(:disabled) { background: #303068 !important; }
         #panel-btn.active { background: #4545bb !important; }
+        #debug-btn { position: relative; background: #252550; }
+        #debug-btn:hover:not(:disabled) { background: #303068 !important; }
+        #debug-btn.has-errors { background: #3a1818 !important; }
+        #debug-badge {
+            display: none;
+            position: absolute;
+            top: 3px; right: 3px;
+            background: #cc3333;
+            color: #fff;
+            font-size: 0.58rem;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+        }
 
         @media (max-width: 600px) {
             /* 44px touch targets; 16px prevents iOS auto-zoom on focus */
@@ -262,6 +316,7 @@
             transition: color 0.2s ease;
         }
         #status.loading { color: #a8a8e8; }
+
         /* ── Map message overlay (errors / empty results) ── */
         #map-overlay {
             position: absolute; inset: 0;
@@ -283,6 +338,73 @@
         }
         #map-overlay-msg.visible { display: block; }
         .leaflet-container { background: #1a1a3a; }
+
+        /* ── Debug modal ── */
+        #debug-modal {
+            display: none;
+            position: fixed; inset: 0;
+            z-index: 9000;
+            background: rgba(0, 0, 0, 0.72);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        #debug-modal.open { display: flex; }
+        #debug-box {
+            background: #0d0d20;
+            border: 1px solid #303068;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 640px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #debug-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid #252550;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        #debug-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #c0c0f0;
+            flex: 1;
+        }
+        .dbtn {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            background: #252550;
+            color: #a0a0d0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .dbtn:hover { background: #303068; color: #e0e0ff; }
+        #debug-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: ui-monospace, 'Cascadia Code', 'Menlo', monospace;
+            font-size: 0.72rem;
+            line-height: 1.6;
+            background: #080816;
+        }
+        .dlog-entry {
+            padding: 1px 4px;
+            border-bottom: 1px solid #131326;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+        .dlog-log   { color: #9090bb; }
+        .dlog-info  { color: #6aadff; }
+        .dlog-warn  { color: #ffbe55; }
+        .dlog-error { color: #ff7070; }
     </style>
 </head>
 <body>
@@ -291,6 +413,13 @@
     <h1>OSM Edit Heatmap</h1>
     <button id="user-btn" class="tbtn icon-btn" onclick="toggleSearch()" title="Search user" aria-label="Search user">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/></svg>
+    </button>
+    <button id="debug-btn" class="tbtn icon-btn" onclick="toggleDebug()" title="Debug console" aria-label="Debug console">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"/>
+            <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
+        </svg>
+        <span id="debug-badge">0</span>
     </button>
     <button id="panel-btn" class="tbtn" onclick="togglePanel()">Controls</button>
 </div>
@@ -356,13 +485,23 @@
 
 <div id="status">Enter an OSM username above to visualize their edit history.</div>
 
+<!-- Debug console modal -->
+<div id="debug-modal">
+    <div id="debug-box">
+        <div id="debug-header">
+            <span id="debug-title">Debug Console</span>
+            <button class="dbtn" onclick="debugClear()">Clear</button>
+            <button class="dbtn" onclick="debugCopy()">Copy</button>
+            <button class="dbtn" onclick="toggleDebug()">&#x2715;</button>
+        </div>
+        <div id="debug-log"></div>
+    </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 // ── localStorage helpers ──────────────────────────────────────────────────────
-// Per-user record: { changesets: [{id,lat,lon},...], fetchedAt: ISO string }
-// Index:           osm_history = ["username", ...]  (most recent first)
-
 const STORE_PREFIX = 'osm_user:';
 const HISTORY_KEY  = 'osm_history';
 
@@ -455,10 +594,8 @@ function toggleSearch() {
     const open   = drawer.classList.toggle('open');
     btn.classList.toggle('active', open);
     if (open) {
-        // Close controls panel if it was open
         document.getElementById('panel').classList.remove('open');
         document.getElementById('panel-btn').classList.remove('active');
-        // After the slide animation, allow the history dropdown to overflow
         drawer.addEventListener('transitionend', () => { drawer.style.overflow = 'visible'; }, { once: true });
         setTimeout(() => document.getElementById('username').focus(), 50);
     } else {
@@ -479,7 +616,6 @@ function togglePanel() {
     const open = document.getElementById('panel').classList.toggle('open');
     document.getElementById('panel-btn').classList.toggle('active', open);
     if (open) hideSearch();
-    // Redraw map after the slide transition so tiles fill the revealed area
     setTimeout(() => map.invalidateSize(), 230);
 }
 
@@ -489,6 +625,63 @@ function updateGradPreview(scheme) {
         .map(([p, c]) => `${c} ${(p * 100).toFixed(0)}%`)
         .join(', ');
     document.getElementById('grad-preview').style.background = `linear-gradient(to right, ${stops})`;
+}
+
+// ── Debug console ─────────────────────────────────────────────────────────────
+window.__debugLogEl = null;
+
+window.__appendDebugEntry = function (entry) {
+    if (!window.__debugLogEl) return;
+    const div = document.createElement('div');
+    div.className = `dlog-entry dlog-${entry.level}`;
+    div.textContent = `[${entry.t}] [${entry.level.toUpperCase()}] ${entry.text}`;
+    window.__debugLogEl.appendChild(div);
+    window.__debugLogEl.scrollTop = window.__debugLogEl.scrollHeight;
+};
+
+function toggleDebug() {
+    const modal = document.getElementById('debug-modal');
+    const isOpen = modal.classList.toggle('open');
+    if (isOpen) {
+        const logEl = document.getElementById('debug-log');
+        window.__debugLogEl = logEl;
+        logEl.innerHTML = '';
+        window.__debugEntries.forEach(e => window.__appendDebugEntry(e));
+        logEl.scrollTop = logEl.scrollHeight;
+        // Clear the error badge
+        window.__debugErrorCount = 0;
+        const badge = document.getElementById('debug-badge');
+        badge.style.display = 'none';
+        document.getElementById('debug-btn').classList.remove('has-errors');
+    } else {
+        window.__debugLogEl = null;
+    }
+}
+
+function debugClear() {
+    window.__debugEntries = [];
+    if (window.__debugLogEl) window.__debugLogEl.innerHTML = '';
+}
+
+function debugCopy() {
+    const text = window.__debugEntries
+        .map(e => `[${e.t}] [${e.level.toUpperCase()}] ${e.text}`)
+        .join('\n');
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta);
 }
 
 // ── History dropdown ──────────────────────────────────────────────────────────
@@ -542,9 +735,9 @@ document.getElementById('username').addEventListener('input', () =>
     renderHistory(document.getElementById('username').value.trim())
 );
 document.addEventListener('click', e => {
-    const userBtn = document.getElementById('user-btn');
-    const drawer  = document.getElementById('search-drawer');
-    if (!drawer.contains(e.target) && !userBtn.contains(e.target)) {
+    const userBtnEl = document.getElementById('user-btn');
+    const drawer    = document.getElementById('search-drawer');
+    if (!drawer.contains(e.target) && !userBtnEl.contains(e.target)) {
         closeHistory();
         if (drawer.classList.contains('open')) hideSearch();
     }
@@ -633,17 +826,45 @@ function applyPoints(pts, fitView) {
     }
 }
 
-// ── Connectivity + error helpers ──────────────────────────────────────────────
-async function checkConnectivity(signal) {
-    const resp = await fetch('https://api.openstreetmap.org/api/capabilities', { signal });
-    if (!resp.ok) throw new Error(`OSM API unreachable (HTTP ${resp.status})`);
+// ── Fetch with per-request timeout ───────────────────────────────────────────
+function timedFetch(url, signal, ms = 15000) {
+    const timeoutCtrl = new AbortController();
+    const timerId = setTimeout(() => timeoutCtrl.abort(), ms);
+
+    let combined;
+    if (typeof AbortSignal.any === 'function') {
+        combined = AbortSignal.any([signal, timeoutCtrl.signal]);
+    } else {
+        const ctrl = new AbortController();
+        const fwd = (src, reason) => src.addEventListener('abort', () => ctrl.abort(reason), { once: true });
+        fwd(signal, signal.reason);
+        fwd(timeoutCtrl.signal, timeoutCtrl.signal.reason);
+        combined = ctrl.signal;
+    }
+
+    return fetch(url, { signal: combined })
+        .then(r => { clearTimeout(timerId); return r; })
+        .catch(err => {
+            clearTimeout(timerId);
+            if (timeoutCtrl.signal.aborted && !signal.aborted) {
+                const e = new Error(`Request timed out after ${ms / 1000}s — server may be slow or blocked`);
+                e.name = 'TimeoutError';
+                throw e;
+            }
+            throw err;
+        });
 }
 
+// ── Error classification ──────────────────────────────────────────────────────
 function classifyError(err, username) {
     const m = (err.message || '').toLowerCase();
+    if (err.name === 'TimeoutError' || m.includes('timed out'))
+        return `OSM API request timed out. The server may be slow or fetch requests may be blocked on this network. Open the debug console for details.`;
+    if (m.includes('csp') || m.includes('security policy') || m.includes('content security'))
+        return 'A Content Security Policy is blocking requests to the OSM API. Open the debug console for CSP details.';
     if (m.includes('failed to fetch') || m.includes('networkerror') ||
         m.includes('load failed') || m.includes('network request failed'))
-        return 'Cannot reach OSM API — check your internet connection.';
+        return 'Cannot reach OSM API — check your internet connection. Open the debug console for details.';
     if (m.includes('unreachable')) return err.message;
     if (m.includes('404') || m.includes('not found'))
         return `User "${username}" was not found on OpenStreetMap.`;
@@ -666,8 +887,7 @@ async function startSearch({ refresh = false } = {}) {
     const username = document.getElementById('username').value.trim();
     if (!username) return;
 
-    // Fire feedback immediately — before drawer closes
-    setStatus('Connecting to OSM API…');
+    setStatus(`Searching for "${username}"…`);
     loadingStart();
     hideSearch();
     document.activeElement?.blur();
@@ -685,11 +905,9 @@ async function startSearch({ refresh = false } = {}) {
     allPoints = [];
     hideMapMsg();
 
+    console.log(`Starting search for user: ${username} (refresh=${refresh})`);
+
     try {
-        await checkConnectivity(signal);
-
-        setStatus(`Searching for "${username}"…`);
-
         const cached = loadUser(username);
         if (cached && !refresh) {
             const pts = cached.changesets.map(c => [c.lat, c.lon]);
@@ -713,6 +931,7 @@ async function startSearch({ refresh = false } = {}) {
         touchHistory(username);
     } catch (err) {
         if (err.name === 'AbortError') return;
+        console.error(`Search failed: ${err.name}: ${err.message}`);
         loadingDone();
         const msg = classifyError(err, username);
         setStatus(msg);
@@ -786,15 +1005,15 @@ async function* changesetPages(username, signal) {
     let params = `display_name=${encodeURIComponent(username)}&limit=100`;
     while (true) {
         if (signal.aborted) return;
-        const resp = await fetch(
-            `https://api.openstreetmap.org/api/0.6/changesets.json?${params}`, { signal }
-        );
+        const url = `https://api.openstreetmap.org/api/0.6/changesets.json?${params}`;
+        console.log(`Fetching: ${url}`);
+        const resp = await timedFetch(url, signal);
+        console.log(`Response: ${resp.status} ${resp.statusText}`);
         if (!resp.ok) throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
         const { changesets = [] } = await resp.json();
+        console.log(`Page returned ${changesets.length} changesets`);
         yield changesets;
         if (changesets.length < 100) return;
-        // Advance cursor: 1 second before the oldest created_at in this page
-        // (changesets are returned newest-first, so last entry is oldest)
         const oldest = new Date(changesets[changesets.length - 1].created_at);
         oldest.setSeconds(oldest.getSeconds() - 1);
         params = `display_name=${encodeURIComponent(username)}&limit=100&time=${encodeURIComponent(oldest.toISOString())}`;
@@ -802,13 +1021,19 @@ async function* changesetPages(username, signal) {
 }
 
 document.getElementById('username').addEventListener('keydown', e => {
-    if (e.key === 'Enter')  startSearch();           // hideSearch called inside
+    if (e.key === 'Enter')  startSearch();
     if (e.key === 'Escape') { closeHistory(); hideSearch(); }
+});
+
+// Close debug modal on backdrop click
+document.getElementById('debug-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('debug-modal')) toggleDebug();
 });
 
 // Init
 updateGradPreview(ui.colorScheme);
 heatPane.style.opacity = ui.heatOpacity;
+console.log('OSM Edit Heatmap iteration4 loaded');
 </script>
 </body>
 </html>
