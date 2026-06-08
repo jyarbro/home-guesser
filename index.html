@@ -39,9 +39,8 @@
             0%   { left: -50%; }
             100% { left: 100%; }
         }
-        @keyframes btn-pulse {
-            0%, 100% { opacity: 1; }
-            50%       { opacity: 0.35; }
+        @keyframes icon-spin {
+            to { transform: rotate(360deg); }
         }
         #line-bar {
             height: 3px;
@@ -69,7 +68,7 @@
             opacity: 1;
             animation: bar-scan 0.9s linear infinite;
         }
-        #user-btn.loading { animation: btn-pulse 0.7s ease-in-out infinite; }
+        #user-btn.loading svg { animation: icon-spin 0.8s linear infinite; transform-origin: center; }
 
         /* ── Search drawer ── */
         #search-drawer {
@@ -263,6 +262,26 @@
             transition: color 0.2s ease;
         }
         #status.loading { color: #a8a8e8; }
+        /* ── Map message overlay (errors / empty results) ── */
+        #map-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; z-index: 800; padding: 24px;
+        }
+        #map-overlay-msg {
+            display: none;
+            background: rgba(11, 11, 26, 0.93);
+            color: #c0c0f0;
+            padding: 18px 24px;
+            border-radius: 10px;
+            border: 1px solid #3a3a6a;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 88%;
+            line-height: 1.55;
+            pointer-events: auto;
+        }
+        #map-overlay-msg.visible { display: block; }
         .leaflet-container { background: #1a1a3a; }
     </style>
 </head>
@@ -291,6 +310,7 @@
 
 <div id="map-wrap">
     <div id="map"></div>
+    <div id="map-overlay"><div id="map-overlay-msg"></div></div>
     <div id="panel">
         <div class="psec">
             <h3>Map</h3>
@@ -613,16 +633,44 @@ function applyPoints(pts, fitView) {
     }
 }
 
+// ── Connectivity + error helpers ──────────────────────────────────────────────
+async function checkConnectivity(signal) {
+    const resp = await fetch('https://api.openstreetmap.org/api/capabilities', { signal });
+    if (!resp.ok) throw new Error(`OSM API unreachable (HTTP ${resp.status})`);
+}
+
+function classifyError(err, username) {
+    const m = (err.message || '').toLowerCase();
+    if (m.includes('failed to fetch') || m.includes('networkerror') ||
+        m.includes('load failed') || m.includes('network request failed'))
+        return 'Cannot reach OSM API — check your internet connection.';
+    if (m.includes('unreachable')) return err.message;
+    if (m.includes('404') || m.includes('not found'))
+        return `User "${username}" was not found on OpenStreetMap.`;
+    if (m.includes('429') || m.includes('too many'))
+        return 'Rate limited by OSM API — wait a moment and try again.';
+    return `Error: ${err.message}`;
+}
+
+function showMapMsg(msg) {
+    const el = document.getElementById('map-overlay-msg');
+    el.textContent = msg;
+    el.classList.add('visible');
+}
+function hideMapMsg() {
+    document.getElementById('map-overlay-msg').classList.remove('visible');
+}
+
 // ── Search orchestration ──────────────────────────────────────────────────────
 async function startSearch({ refresh = false } = {}) {
     const username = document.getElementById('username').value.trim();
     if (!username) return;
-    // Clear instruction text and start visual feedback immediately,
-    // before the drawer animates closed
-    setStatus(`Searching "${username}"…`);
+
+    // Fire feedback immediately — before drawer closes
+    setStatus('Connecting to OSM API…');
     loadingStart();
     hideSearch();
-    document.activeElement?.blur(); // dismiss mobile keyboard
+    document.activeElement?.blur();
 
     if (activeAbort) activeAbort.abort();
     activeAbort = new AbortController();
@@ -635,14 +683,18 @@ async function startSearch({ refresh = false } = {}) {
     if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
     hotZoneGroup.clearLayers();
     allPoints = [];
-    try {
-        const cached = loadUser(username);
+    hideMapMsg();
 
+    try {
+        await checkConnectivity(signal);
+
+        setStatus(`Searching for "${username}"…`);
+
+        const cached = loadUser(username);
         if (cached && !refresh) {
-            // Paint cached points immediately, then silently check for newer ones
             const pts = cached.changesets.map(c => [c.lat, c.lon]);
             applyPoints(pts, true);
-            setStatus(`Loaded ${pts.length.toLocaleString()} cached changesets for "${username}" — checking for new…`);
+            setStatus(`Showing ${pts.length.toLocaleString()} cached changesets — checking for updates…`);
             await appendNew(username, cached, signal);
         } else {
             await fetchFull(username, signal);
@@ -650,7 +702,9 @@ async function startSearch({ refresh = false } = {}) {
 
         if (signal.aborted) return;
         if (allPoints.length === 0) {
-            setStatus(`No geolocated changesets found for "${username}".`);
+            const msg = `No geolocated changesets found for "${username}".`;
+            setStatus(msg);
+            showMapMsg(msg);
         } else {
             renderHotZones();
             setStatus(`${refresh ? 'Refreshed' : 'Done'} — ${allPoints.length.toLocaleString()} changesets for "${username}".`);
@@ -660,7 +714,9 @@ async function startSearch({ refresh = false } = {}) {
     } catch (err) {
         if (err.name === 'AbortError') return;
         loadingDone();
-        setStatus(`Error: ${err.message}`);
+        const msg = classifyError(err, username);
+        setStatus(msg);
+        showMapMsg(msg);
     } finally {
         if (!signal.aborted) { btn.disabled = false; btn.textContent = 'Search'; }
     }
@@ -669,20 +725,25 @@ async function startSearch({ refresh = false } = {}) {
 // Full fetch: stream all pages, persist when done
 async function fetchFull(username, signal) {
     const seen = new Set();
-    const collected = [];  // {id, lat, lon}
-    let   boundsSet = false;
+    const collected = [];
+    let boundsSet = false;
+    let pageNum = 0;
 
-    for await (const page of changesetPages(username, signal)) {
-        for (const cs of page) {
+    for await (const pageData of changesetPages(username, signal)) {
+        pageNum++;
+        for (const cs of pageData) {
             if (seen.has(cs.id)) continue;
             seen.add(cs.id);
             if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
                 collected.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
         }
-        if (collected.length === 0) continue;
+        if (collected.length === 0) {
+            setStatus(`Page ${pageNum} — no geolocated changesets yet, continuing…`);
+            continue;
+        }
         applyPoints(collected.map(c => [c.lat, c.lon]), !boundsSet);
         if (!boundsSet) boundsSet = true;
-        setStatus(`Loading "${username}"… ${collected.length.toLocaleString()} changesets`);
+        setStatus(`Page ${pageNum} — ${collected.length.toLocaleString()} changesets loaded${pageData.length === 100 ? ', fetching more…' : ''}`);
     }
 
     if (!signal.aborted && collected.length > 0)
@@ -692,17 +753,19 @@ async function fetchFull(username, signal) {
 // Incremental refresh: only fetch pages until we hit a changeset we already have
 async function appendNew(username, cached, signal) {
     const knownIds = new Set(cached.changesets.map(c => c.id));
-    const added    = [];
+    const added = [];
+    let pageNum = 0;
 
-    for await (const page of changesetPages(username, signal)) {
+    for await (const pageData of changesetPages(username, signal)) {
+        pageNum++;
+        setStatus(`Checking for new changesets (page ${pageNum})…`);
         let allKnown = true;
-        for (const cs of page) {
+        for (const cs of pageData) {
             if (knownIds.has(cs.id)) continue;
             allKnown = false;
             if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
                 added.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
         }
-        // Once we see a full page of already-known changesets, we're caught up
         if (allKnown) break;
     }
 
@@ -712,7 +775,7 @@ async function appendNew(username, cached, signal) {
         const merged = [...added, ...cached.changesets];
         saveUser(username, { changesets: merged, fetchedAt: new Date().toISOString() });
         applyPoints(merged.map(c => [c.lat, c.lon]), false);
-        setStatus(`Found ${added.length} new changeset(s) for "${username}" — updating…`);
+        setStatus(`Found ${added.length.toLocaleString()} new changesets — ${merged.length.toLocaleString()} total for "${username}".`);
     } else {
         setStatus(`Up to date — ${cached.changesets.length.toLocaleString()} changesets for "${username}".`);
     }
