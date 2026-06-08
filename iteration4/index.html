@@ -49,10 +49,11 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            height: 100dvh;
+            height: 100dvh; /* tracks visible viewport on iOS/Android, avoiding chrome overlap */
             background: #12122a;
         }
 
+        /* ── Toolbar ── */
         #toolbar {
             display: flex;
             align-items: center;
@@ -68,6 +69,8 @@
             white-space: nowrap;
         }
 
+        /* ── Line bar (toolbar border + loading indicator) ── */
+        /* translateZ(0) forces a compositing layer so overflow:hidden clips the fill */
         @keyframes bar-scan {
             0%   { left: -50%; }
             100% { left: 100%; }
@@ -103,6 +106,7 @@
         }
         #user-btn.loading svg { animation: icon-spin 0.8s linear infinite; transform-origin: center; }
 
+        /* ── Search drawer ── */
         #search-drawer {
             overflow: hidden;
             max-height: 0;
@@ -121,7 +125,11 @@
             padding: 8px 16px;
         }
 
-        #username-wrap { position: relative; flex: 1; }
+        /* Username input + history dropdown */
+        #username-wrap {
+            position: relative;
+            flex: 1;
+        }
         #username {
             width: 100%;
             padding: 7px 12px;
@@ -156,16 +164,48 @@
         }
         #username-wrap.open #history-list { display: block; }
 
-        .hist-item { display: flex; align-items: center; padding: 0 6px 0 0; transition: background 0.1s; }
+        .hist-item {
+            display: flex;
+            align-items: center;
+            padding: 0 6px 0 0;
+            transition: background 0.1s;
+        }
         .hist-item:hover { background: #28285a; }
-        .hist-name { flex: 1; padding: 8px 12px; font-size: 0.88rem; color: #c0c0ee; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .hist-meta { font-size: 0.72rem; color: #50509a; white-space: nowrap; padding: 0 6px; }
-        .hist-refresh, .hist-delete { padding: 4px 6px; background: none; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: color 0.15s, background 0.15s; flex-shrink: 0; }
+        .hist-name {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 0.88rem;
+            color: #c0c0ee;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .hist-meta {
+            font-size: 0.72rem;
+            color: #50509a;
+            white-space: nowrap;
+            padding: 0 6px;
+        }
+        .hist-refresh, .hist-delete {
+            padding: 4px 6px;
+            background: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: color 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
         .hist-refresh { color: #50509a; }
         .hist-refresh:hover { color: #9090cc; background: #303068; }
         .hist-delete { color: #50509a; }
         .hist-delete:hover { color: #cc4444; background: #3a1818; }
-        .hist-empty { padding: 10px 12px; font-size: 0.82rem; color: #50509a; }
+        .hist-empty {
+            padding: 10px 12px;
+            font-size: 0.82rem;
+            color: #50509a;
+        }
 
         .tbtn {
             padding: 7px 16px;
@@ -188,6 +228,7 @@
         #panel-btn.active { background: #4545bb !important; }
         #debug-btn { position: relative; background: #252550; }
         #debug-btn:hover:not(:disabled) { background: #303068 !important; }
+        #debug-btn.has-errors { background: #3a1818 !important; }
         #debug-badge {
             display: none;
             position: absolute;
@@ -205,17 +246,25 @@
         }
 
         @media (max-width: 600px) {
+            /* 44px touch targets; 16px prevents iOS auto-zoom on focus */
             #username { min-height: 44px; font-size: 16px; padding: 10px 12px; }
             .tbtn { min-height: 44px; padding: 10px 14px; }
             .icon-btn { padding: 10px 12px; }
+
+            /* Full-width controls panel */
             #panel { width: 100%; border-left: none; border-bottom: 1px solid #252550; }
+
+            /* Larger tap areas in history list */
             .hist-name { padding: 12px; }
             .hist-refresh, .hist-delete { padding: 10px 8px; }
         }
 
+        /* ── Map wrapper ── */
+        /* min-height: 0 lets the flex item shrink so height: 100% works on #map */
         #map-wrap { flex: 1; min-height: 0; position: relative; overflow: hidden; }
         #map { position: absolute; inset: 0; }
 
+        /* ── Slide-out panel ── */
         #panel {
             position: absolute;
             top: 0; right: 0;
@@ -231,13 +280,22 @@
         #panel.open { transform: translateX(0); }
 
         .psec { padding: 14px 16px; border-bottom: 1px solid #1c1c3a; }
-        .psec h3 { font-size: 0.68rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #4444aa; margin-bottom: 14px; }
+        .psec h3 {
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 1.2px; text-transform: uppercase;
+            color: #4444aa; margin-bottom: 14px;
+        }
         .crow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
         .crow label { font-size: 0.82rem; color: #9090cc; }
         .crow .val { font-size: 0.78rem; color: #6868aa; min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
 
         input[type=range] { width: 100%; margin: 4px 0 12px; accent-color: #6868cc; cursor: pointer; }
-        select { width: 100%; padding: 6px 8px; background: #1a1a3a; color: #b0b0ee; border: 1px solid #303068; border-radius: 5px; font-size: 0.85rem; outline: none; cursor: pointer; margin-bottom: 8px; }
+        select {
+            width: 100%; padding: 6px 8px;
+            background: #1a1a3a; color: #b0b0ee;
+            border: 1px solid #303068; border-radius: 5px;
+            font-size: 0.85rem; outline: none; cursor: pointer; margin-bottom: 8px;
+        }
         #grad-preview { height: 8px; border-radius: 4px; margin-bottom: 4px; }
 
         .trow { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
@@ -249,23 +307,101 @@
         .toggle input:checked + .ttrack::after { left: 19px; background: #fff; }
         .tlabel { font-size: 0.84rem; color: #9090cc; }
 
-        #status { padding: 5px 16px; font-size: 0.78rem; background: #12122a; color: #70709a; border-top: 1px solid #252550; min-height: 26px; display: flex; align-items: center; flex-shrink: 0; transition: color 0.2s ease; }
+        /* ── Status bar ── */
+        #status {
+            padding: 5px 16px; font-size: 0.78rem;
+            background: #12122a; color: #70709a;
+            border-top: 1px solid #252550;
+            min-height: 26px; display: flex; align-items: center; flex-shrink: 0;
+            transition: color 0.2s ease;
+        }
         #status.loading { color: #a8a8e8; }
 
-        #map-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 800; padding: 24px; }
-        #map-overlay-msg { display: none; background: rgba(11, 11, 26, 0.93); color: #c0c0f0; padding: 18px 24px; border-radius: 10px; border: 1px solid #3a3a6a; font-size: 0.9rem; text-align: center; max-width: 88%; line-height: 1.55; pointer-events: auto; }
+        /* ── Map message overlay (errors / empty results) ── */
+        #map-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; z-index: 800; padding: 24px;
+        }
+        #map-overlay-msg {
+            display: none;
+            background: rgba(11, 11, 26, 0.93);
+            color: #c0c0f0;
+            padding: 18px 24px;
+            border-radius: 10px;
+            border: 1px solid #3a3a6a;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 88%;
+            line-height: 1.55;
+            pointer-events: auto;
+        }
         #map-overlay-msg.visible { display: block; }
         .leaflet-container { background: #1a1a3a; }
 
-        #debug-modal { display: none; position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,0.72); align-items: center; justify-content: center; padding: 16px; }
+        /* ── Debug modal ── */
+        #debug-modal {
+            display: none;
+            position: fixed; inset: 0;
+            z-index: 9000;
+            background: rgba(0, 0, 0, 0.72);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
         #debug-modal.open { display: flex; }
-        #debug-box { background: #0d0d20; border: 1px solid #303068; border-radius: 10px; width: 100%; max-width: 640px; height: 65vh; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
-        #debug-header { display: flex; align-items: center; padding: 10px 14px; border-bottom: 1px solid #252550; gap: 8px; flex-shrink: 0; }
-        #debug-title { font-size: 0.85rem; font-weight: 600; color: #c0c0f0; flex: 1; }
-        .dbtn { padding: 4px 10px; font-size: 0.75rem; background: #252550; color: #a0a0d0; border: none; border-radius: 5px; cursor: pointer; transition: background 0.15s; }
+        #debug-box {
+            background: #0d0d20;
+            border: 1px solid #303068;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 640px;
+            height: 65vh;        /* explicit height so flex:1 on #debug-log works */
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #debug-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid #252550;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        #debug-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #c0c0f0;
+            flex: 1;
+        }
+        .dbtn {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            background: #252550;
+            color: #a0a0d0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
         .dbtn:hover { background: #303068; color: #e0e0ff; }
-        #debug-log { flex: 1; overflow-y: auto; padding: 8px; font-family: ui-monospace, 'Cascadia Code', 'Menlo', monospace; font-size: 0.72rem; line-height: 1.6; background: #080816; }
-        .dlog-entry { padding: 1px 4px; border-bottom: 1px solid #131326; word-break: break-all; white-space: pre-wrap; }
+        #debug-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: ui-monospace, 'Cascadia Code', 'Menlo', monospace;
+            font-size: 0.72rem;
+            line-height: 1.6;
+            background: #080816;
+        }
+        .dlog-entry {
+            padding: 1px 4px;
+            border-bottom: 1px solid #131326;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
         .dlog-log   { color: #9090bb; }
         .dlog-info  { color: #6aadff; }
         .dlog-warn  { color: #ffbe55; }
@@ -294,7 +430,8 @@
 <div id="search-drawer">
     <div id="search-inner">
         <div id="username-wrap">
-            <input id="username" type="text" placeholder="Enter OSM username…" autocomplete="off" spellcheck="false" />
+            <input id="username" type="text" placeholder="Enter OSM username…"
+                   autocomplete="off" spellcheck="false" />
             <div id="history-list"></div>
         </div>
         <button id="search-btn" class="tbtn" onclick="startSearch()">Search</button>
@@ -320,13 +457,25 @@
             <input type="range" id="heat-blur" min="1" max="50" value="18" oninput="onHeatBlur(this.value)" />
             <div class="crow" style="margin-bottom:6px"><label>Color scheme</label></div>
             <select id="color-scheme" onchange="onColorScheme(this.value)">
-                <option value="Classic">Classic</option><option value="Plasma">Plasma</option><option value="Inferno">Inferno</option><option value="Hot">Hot</option><option value="Cool">Cool</option><option value="Neon">Neon</option><option value="Viridis">Viridis</option>
+                <option value="Classic">Classic</option>
+                <option value="Plasma">Plasma</option>
+                <option value="Inferno">Inferno</option>
+                <option value="Hot">Hot</option>
+                <option value="Cool">Cool</option>
+                <option value="Neon">Neon</option>
+                <option value="Viridis">Viridis</option>
             </select>
             <div id="grad-preview"></div>
         </div>
         <div class="psec">
             <h3>Hot Zones</h3>
-            <div class="trow"><label class="toggle"><input type="checkbox" id="hz-toggle" onchange="onHotZoneToggle(this.checked)" /><span class="ttrack"></span></label><span class="tlabel">Show centroids</span></div>
+            <div class="trow">
+                <label class="toggle">
+                    <input type="checkbox" id="hz-toggle" onchange="onHotZoneToggle(this.checked)" />
+                    <span class="ttrack"></span>
+                </label>
+                <span class="tlabel">Show centroids</span>
+            </div>
             <div class="crow"><label>Min changesets</label><span class="val" id="v-hz-threshold">5</span></div>
             <input type="range" id="hz-threshold" min="1" max="100" value="5" oninput="onThreshold(this.value)" />
             <div class="crow"><label>Grid size</label><span class="val" id="v-hz-grid">1.0°</span></div>
@@ -337,6 +486,7 @@
 
 <div id="status">Enter an OSM username above to visualize their edit history.</div>
 
+<!-- Debug console modal -->
 <div id="debug-modal">
     <div id="debug-box">
         <div id="debug-header">
@@ -352,188 +502,548 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
-const STORE_PREFIX='osm_user:',HISTORY_KEY='osm_history';
-function userKey(n){return STORE_PREFIX+n.toLowerCase();}
-function loadUser(n){try{const r=localStorage.getItem(userKey(n));return r?JSON.parse(r):null;}catch{return null;}}
-function saveUser(n,d){try{localStorage.setItem(userKey(n),JSON.stringify(d));}catch(e){console.warn('localStorage quota exceeded:',e);}}
-function loadHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');}catch{return[];}}
-function saveHistory(l){localStorage.setItem(HISTORY_KEY,JSON.stringify(l));}
-function touchHistory(n){const l=n.toLowerCase();saveHistory([l,...loadHistory().filter(u=>u!==l)]);}
-function removeUser(n){const l=n.toLowerCase();saveHistory(loadHistory().filter(u=>u!==l));localStorage.removeItem(userKey(l));}
+// ── localStorage helpers ────────────────────────────────────────────
+const STORE_PREFIX = 'osm_user:';
+const HISTORY_KEY  = 'osm_history';
 
-const GRADIENTS={
-    Classic:{0.2:'#3333cc',0.4:'#00aaff',0.6:'#00ffaa',0.8:'#ffff00',1.0:'#ff4422'},
-    Plasma:{0.0:'#2d004f',0.25:'#7e03a8',0.5:'#cc4778',0.75:'#f89441',1.0:'#fbf521'},
-    Inferno:{0.0:'#200001',0.25:'#57106e',0.5:'#bc3754',0.75:'#f98e09',1.0:'#fcffa4'},
-    Hot:{0.0:'#1a0000',0.35:'#dd1100',0.7:'#ffaa00',1.0:'#ffffff'},
-    Cool:{0.2:'#001199',0.5:'#0077ff',0.8:'#00eeff',1.0:'#ffffff'},
-    Neon:{0.0:'#0d0020',0.25:'#aa00ff',0.5:'#ff0066',0.75:'#ff9900',1.0:'#ffff00'},
-    Viridis:{0.0:'#440154',0.25:'#31688e',0.5:'#35b779',0.75:'#90d743',1.0:'#fde725'},
+function userKey(name) { return STORE_PREFIX + name.toLowerCase(); }
+
+function loadUser(name) {
+    try { const r = localStorage.getItem(userKey(name)); return r ? JSON.parse(r) : null; }
+    catch { return null; }
+}
+
+function saveUser(name, data) {
+    try { localStorage.setItem(userKey(name), JSON.stringify(data)); }
+    catch (e) { console.warn('localStorage quota exceeded:', e); }
+}
+
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch { return []; }
+}
+
+function saveHistory(list) { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+
+function touchHistory(name) {
+    const lower = name.toLowerCase();
+    saveHistory([lower, ...loadHistory().filter(u => u !== lower)]);
+}
+
+function removeUser(name) {
+    const lower = name.toLowerCase();
+    saveHistory(loadHistory().filter(u => u !== lower));
+    localStorage.removeItem(userKey(lower));
+}
+
+// ── Gradient presets ────────────────────────────────────────────
+const GRADIENTS = {
+    Classic: { 0.2: '#3333cc', 0.4: '#00aaff', 0.6: '#00ffaa', 0.8: '#ffff00', 1.0: '#ff4422' },
+    Plasma:  { 0.0: '#2d004f', 0.25: '#7e03a8', 0.5: '#cc4778', 0.75: '#f89441', 1.0: '#fbf521' },
+    Inferno: { 0.0: '#200001', 0.25: '#57106e', 0.5: '#bc3754', 0.75: '#f98e09', 1.0: '#fcffa4' },
+    Hot:     { 0.0: '#1a0000', 0.35: '#dd1100', 0.7: '#ffaa00', 1.0: '#ffffff' },
+    Cool:    { 0.2: '#001199', 0.5: '#0077ff', 0.8: '#00eeff',  1.0: '#ffffff' },
+    Neon:    { 0.0: '#0d0020', 0.25: '#aa00ff', 0.5: '#ff0066', 0.75: '#ff9900', 1.0: '#ffff00' },
+    Viridis: { 0.0: '#440154', 0.25: '#31688e', 0.5: '#35b779', 0.75: '#90d743', 1.0: '#fde725' },
 };
 
-const map=L.map('map').setView([20,0],2);
-const tileLayer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map);
-const heatPane=map.createPane('heatPane');heatPane.style.zIndex=400;
-let heatLayer=null,hotZoneGroup=L.layerGroup().addTo(map),activeAbort=null,allPoints=[];
-const ui={tileOpacity:1.0,heatOpacity:0.8,heatRadius:25,heatBlur:18,colorScheme:'Classic',hotZonesOn:false,threshold:5,gridDeg:1.0};
+// ── Map setup ─────────────────────────────────────────────────
+const map       = L.map('map').setView([20, 0], 2);
+const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+}).addTo(map);
 
-function setStatus(m){document.getElementById('status').textContent=m;}
-const lineBar=document.getElementById('line-bar'),userBtn=document.getElementById('user-btn'),statusEl=document.getElementById('status');
-let lineTimer=null;
-function loadingStart(){clearTimeout(lineTimer);lineBar.classList.add('active');userBtn.classList.add('loading');statusEl.classList.add('loading');}
-function loadingDone(){lineTimer=setTimeout(()=>{lineBar.classList.remove('active');userBtn.classList.remove('loading');statusEl.classList.remove('loading');},300);}
+const heatPane = map.createPane('heatPane');
+heatPane.style.zIndex = 400;
 
-function toggleSearch(){
-    const drawer=document.getElementById('search-drawer'),btn=document.getElementById('user-btn');
-    const open=drawer.classList.toggle('open');btn.classList.toggle('active',open);
-    if(open){document.getElementById('panel').classList.remove('open');document.getElementById('panel-btn').classList.remove('active');drawer.addEventListener('transitionend',()=>{drawer.style.overflow='visible';},{once:true});setTimeout(()=>document.getElementById('username').focus(),50);}else{drawer.style.overflow='hidden';closeHistory();}
-}
-function hideSearch(){const drawer=document.getElementById('search-drawer');drawer.style.overflow='hidden';drawer.classList.remove('open');document.getElementById('user-btn').classList.remove('active');closeHistory();}
-function togglePanel(){const open=document.getElementById('panel').classList.toggle('open');document.getElementById('panel-btn').classList.toggle('active',open);if(open)hideSearch();setTimeout(()=>map.invalidateSize(),230);}
-function updateGradPreview(s){const stops=Object.entries(GRADIENTS[s]).sort(([a],[b])=>a-b).map(([p,c])=>`${c} ${(p*100).toFixed(0)}%`).join(', ');document.getElementById('grad-preview').style.background=`linear-gradient(to right, ${stops})`;}
+// ── App state ─────────────────────────────────────────────────
+let heatLayer    = null;
+let hotZoneGroup = L.layerGroup().addTo(map);
+let activeAbort  = null;
+let allPoints    = [];  // [[lat, lon], ...]
 
-window.__debugLogEl=null;
-window.__appendDebugEntry=function(entry){
-    if(!window.__debugLogEl)return;
-    const div=document.createElement('div');div.className=`dlog-entry dlog-${entry.level}`;
-    div.textContent=`[${entry.t}] [${entry.level.toUpperCase()}] ${entry.text}`;
-    window.__debugLogEl.appendChild(div);window.__debugLogEl.scrollTop=window.__debugLogEl.scrollHeight;
+const ui = {
+    tileOpacity: 1.0, heatOpacity: 0.8, heatRadius: 25, heatBlur: 18,
+    colorScheme: 'Classic', hotZonesOn: false, threshold: 5, gridDeg: 1.0,
 };
-function toggleDebug(){
-    const modal=document.getElementById('debug-modal');const isOpen=modal.classList.toggle('open');
-    if(isOpen){const logEl=document.getElementById('debug-log');window.__debugLogEl=logEl;logEl.innerHTML='';window.__debugEntries.forEach(e=>window.__appendDebugEntry(e));logEl.scrollTop=logEl.scrollHeight;window.__debugErrorCount=0;document.getElementById('debug-badge').style.display='none';}else{window.__debugLogEl=null;}
+
+// ── Helpers ─────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+const lineBar  = document.getElementById('line-bar');
+const userBtn  = document.getElementById('user-btn');
+const statusEl = document.getElementById('status');
+let lineTimer  = null;
+function loadingStart() {
+    clearTimeout(lineTimer);
+    lineBar.classList.add('active');
+    userBtn.classList.add('loading');
+    statusEl.classList.add('loading');
 }
-function debugClear(){window.__debugEntries=[];if(window.__debugLogEl)window.__debugLogEl.innerHTML='';}
-function debugCopy(){const text=window.__debugEntries.map(e=>`[${e.t}] [${e.level.toUpperCase()}] ${e.text}`).join('\n');if(navigator.clipboard){navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));}else{fallbackCopy(text);}}
-function fallbackCopy(text){const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0;';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');}catch{}document.body.removeChild(ta);}
-
-function renderHistory(filter=''){
-    const items=loadHistory().filter(u=>!filter||u.includes(filter.toLowerCase()));
-    const list=document.getElementById('history-list');
-    if(items.length===0){list.innerHTML=`<div class="hist-empty">${filter?'No matches.':'No saved users yet.'}</div>`;return;}
-    list.innerHTML=items.map(u=>{const d=loadUser(u);const meta=d?`${d.changesets.length.toLocaleString()} cs &middot; ${new Date(d.fetchedAt).toLocaleDateString()}`:'';return`<div class="hist-item"><span class="hist-name" onclick="selectHistUser('${u}')">${u}</span><span class="hist-meta">${meta}</span><button class="hist-refresh" title="Refresh" onclick="histRefresh('${u}',event)">&#8635;</button><button class="hist-delete" title="Delete" onclick="histDelete('${u}',event)">&#x2715;</button></div>`;}).join('');
-}
-function openHistory(){renderHistory(document.getElementById('username').value.trim());document.getElementById('username-wrap').classList.add('open');}
-function closeHistory(){document.getElementById('username-wrap').classList.remove('open');}
-function selectHistUser(n){document.getElementById('username').value=n;closeHistory();startSearch();}
-function histRefresh(n,e){e.stopPropagation();document.getElementById('username').value=n;closeHistory();startSearch({refresh:true});}
-function histDelete(n,e){e.stopPropagation();removeUser(n);renderHistory(document.getElementById('username').value.trim());}
-document.getElementById('username').addEventListener('focus',openHistory);
-document.getElementById('username').addEventListener('input',()=>renderHistory(document.getElementById('username').value.trim()));
-document.addEventListener('click',e=>{const d=document.getElementById('search-drawer');if(!d.contains(e.target)&&!document.getElementById('user-btn').contains(e.target)){closeHistory();if(d.classList.contains('open'))hideSearch();}});
-
-function onTileOpacity(v){ui.tileOpacity=v/100;document.getElementById('v-tile-opacity').textContent=`${v}%`;tileLayer.setOpacity(ui.tileOpacity);}
-function onHeatOpacity(v){ui.heatOpacity=v/100;document.getElementById('v-heat-opacity').textContent=`${v}%`;heatPane.style.opacity=ui.heatOpacity;}
-function onHeatRadius(v){ui.heatRadius=+v;document.getElementById('v-heat-radius').textContent=v;if(heatLayer)heatLayer.setOptions({radius:ui.heatRadius});}
-function onHeatBlur(v){ui.heatBlur=+v;document.getElementById('v-heat-blur').textContent=v;if(heatLayer)heatLayer.setOptions({blur:ui.heatBlur});}
-function onColorScheme(n){ui.colorScheme=n;updateGradPreview(n);if(heatLayer)heatLayer.setOptions({gradient:GRADIENTS[n]});}
-function onHotZoneToggle(c){ui.hotZonesOn=c;c?renderHotZones():hotZoneGroup.clearLayers();}
-function onThreshold(v){ui.threshold=+v;document.getElementById('v-hz-threshold').textContent=v;if(ui.hotZonesOn)renderHotZones();}
-function onGridSize(v){ui.gridDeg=v/10;document.getElementById('v-hz-grid').textContent=ui.gridDeg.toFixed(1)+'°';if(ui.hotZonesOn)renderHotZones();}
-
-function renderHotZones(){
-    hotZoneGroup.clearLayers();if(!ui.hotZonesOn||allPoints.length===0)return;
-    const counts=new Map();
-    for(const[lat,lon]of allPoints){const key=`${Math.floor(lat/ui.gridDeg)},${Math.floor(lon/ui.gridDeg)}`;counts.set(key,(counts.get(key)||0)+1);}
-    let maxCount=0;
-    for(const[key,count]of counts){if(count<ui.threshold)continue;maxCount=Math.max(maxCount,count);const[r,c]=key.split(',').map(Number);L.circleMarker([(r+0.5)*ui.gridDeg,(c+0.5)*ui.gridDeg],{radius:Math.max(5,Math.min(20,Math.sqrt(count)*1.8)),color:'#cc1100',fillColor:'#ff3322',fillOpacity:0.75,weight:1.5}).bindTooltip(`${count} changesets`).addTo(hotZoneGroup);}
-    if(maxCount>0){const s=document.getElementById('hz-threshold');s.max=Math.max(s.max,maxCount);}
+function loadingDone() {
+    lineTimer = setTimeout(() => {
+        lineBar.classList.remove('active');
+        userBtn.classList.remove('loading');
+        statusEl.classList.remove('loading');
+    }, 300);
 }
 
-function applyPoints(pts,fitView){
-    allPoints=pts;
-    if(!heatLayer){heatLayer=L.heatLayer(pts,{radius:ui.heatRadius,blur:ui.heatBlur,maxZoom:17,gradient:GRADIENTS[ui.colorScheme],pane:'heatPane'}).addTo(map);heatPane.style.opacity=ui.heatOpacity;}else{heatLayer.setLatLngs(pts);}
-    if(fitView&&pts.length>0)map.fitBounds(L.latLngBounds(pts),{padding:[30,30],maxZoom:12});
+function toggleSearch() {
+    const drawer = document.getElementById('search-drawer');
+    const btn    = document.getElementById('user-btn');
+    const open   = drawer.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    if (open) {
+        document.getElementById('panel').classList.remove('open');
+        document.getElementById('panel-btn').classList.remove('active');
+        drawer.addEventListener('transitionend', () => { drawer.style.overflow = 'visible'; }, { once: true });
+        setTimeout(() => document.getElementById('username').focus(), 50);
+    } else {
+        drawer.style.overflow = 'hidden';
+        closeHistory();
+    }
 }
 
-function timedFetch(url,signal,ms=8000){
-    const tc=new AbortController();const tid=setTimeout(()=>tc.abort(),ms);
-    let combined;if(typeof AbortSignal.any==='function'){combined=AbortSignal.any([signal,tc.signal]);}else{const c=new AbortController();const fwd=(s,r)=>s.addEventListener('abort',()=>c.abort(r),{once:true});fwd(signal,signal.reason);fwd(tc.signal,tc.signal.reason);combined=c.signal;}
-    return fetch(url,{signal:combined}).then(r=>{clearTimeout(tid);return r;}).catch(err=>{clearTimeout(tid);if(tc.signal.aborted&&!signal.aborted){const e=new Error(`Request timed out after ${ms/1000}s`);e.name='TimeoutError';throw e;}throw err;});
+function hideSearch() {
+    const drawer = document.getElementById('search-drawer');
+    drawer.style.overflow = 'hidden';
+    drawer.classList.remove('open');
+    document.getElementById('user-btn').classList.remove('active');
+    closeHistory();
 }
 
-function classifyError(err,username){
-    const m=(err.message||'').toLowerCase();
-    const onPreview=location.hostname==='htmlpreview.github.io';
-    if(err.name==='TimeoutError'||m.includes('timed out'))return onPreview?'Blocked by htmlpreview.github.io Content Security Policy. Use the GitHub Pages URL instead.':'OSM API request timed out. Check the debug console for details.';
-    if(m.includes('failed to fetch')||m.includes('networkerror')||m.includes('load failed')||m.includes('network request failed'))return onPreview?'Blocked by htmlpreview.github.io Content Security Policy. Use the GitHub Pages URL instead.':'Cannot reach OSM API. Check the debug console for details.';
-    if(m.includes('csp')||m.includes('security policy'))return 'A Content Security Policy is blocking requests. Check the debug console.';
-    if(m.includes('404')||m.includes('not found'))return `User "${username}" was not found on OpenStreetMap.`;
-    if(m.includes('429')||m.includes('too many'))return 'Rate limited by OSM API — wait a moment and try again.';
+function togglePanel() {
+    const open = document.getElementById('panel').classList.toggle('open');
+    document.getElementById('panel-btn').classList.toggle('active', open);
+    if (open) hideSearch();
+    setTimeout(() => map.invalidateSize(), 230);
+}
+
+function updateGradPreview(scheme) {
+    const stops = Object.entries(GRADIENTS[scheme])
+        .sort(([a], [b]) => a - b)
+        .map(([p, c]) => `${c} ${(p * 100).toFixed(0)}%`)
+        .join(', ');
+    document.getElementById('grad-preview').style.background = `linear-gradient(to right, ${stops})`;
+}
+
+// ── Debug console ─────────────────────────────────────────────
+window.__debugLogEl = null;
+
+window.__appendDebugEntry = function (entry) {
+    if (!window.__debugLogEl) return;
+    const div = document.createElement('div');
+    div.className = `dlog-entry dlog-${entry.level}`;
+    div.textContent = `[${entry.t}] [${entry.level.toUpperCase()}] ${entry.text}`;
+    window.__debugLogEl.appendChild(div);
+    window.__debugLogEl.scrollTop = window.__debugLogEl.scrollHeight;
+};
+
+function toggleDebug() {
+    const modal = document.getElementById('debug-modal');
+    const isOpen = modal.classList.toggle('open');
+    if (isOpen) {
+        const logEl = document.getElementById('debug-log');
+        window.__debugLogEl = logEl;
+        logEl.innerHTML = '';
+        window.__debugEntries.forEach(e => window.__appendDebugEntry(e));
+        logEl.scrollTop = logEl.scrollHeight;
+        // Clear the error badge
+        window.__debugErrorCount = 0;
+        const badge = document.getElementById('debug-badge');
+        badge.style.display = 'none';
+        document.getElementById('debug-btn').classList.remove('has-errors');
+    } else {
+        window.__debugLogEl = null;
+    }
+}
+
+function debugClear() {
+    window.__debugEntries = [];
+    if (window.__debugLogEl) window.__debugLogEl.innerHTML = '';
+}
+
+function debugCopy() {
+    const text = window.__debugEntries
+        .map(e => `[${e.t}] [${e.level.toUpperCase()}] ${e.text}`)
+        .join('\n');
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta);
+}
+
+// ── History dropdown ────────────────────────────────────────────
+function renderHistory(filter = '') {
+    const items = loadHistory().filter(u => !filter || u.includes(filter.toLowerCase()));
+    const list  = document.getElementById('history-list');
+    if (items.length === 0) {
+        list.innerHTML = `<div class="hist-empty">${filter ? 'No matches.' : 'No saved users yet.'}</div>`;
+        return;
+    }
+    list.innerHTML = items.map(u => {
+        const d    = loadUser(u);
+        const meta = d ? `${d.changesets.length.toLocaleString()} cs &middot; ${new Date(d.fetchedAt).toLocaleDateString()}` : '';
+        return `<div class="hist-item">
+            <span class="hist-name" onclick="selectHistUser('${u}')">${u}</span>
+            <span class="hist-meta">${meta}</span>
+            <button class="hist-refresh" title="Check for new changesets" onclick="histRefresh('${u}',event)">&#8635;</button>
+            <button class="hist-delete"  title="Remove from history"      onclick="histDelete('${u}',event)">&#x2715;</button>
+        </div>`;
+    }).join('');
+}
+
+function openHistory() {
+    renderHistory(document.getElementById('username').value.trim());
+    document.getElementById('username-wrap').classList.add('open');
+}
+
+function closeHistory() { document.getElementById('username-wrap').classList.remove('open'); }
+
+function selectHistUser(name) {
+    document.getElementById('username').value = name;
+    closeHistory();
+    startSearch();
+}
+
+function histRefresh(name, e) {
+    e.stopPropagation();
+    document.getElementById('username').value = name;
+    closeHistory();
+    startSearch({ refresh: true });
+}
+
+function histDelete(name, e) {
+    e.stopPropagation();
+    removeUser(name);
+    renderHistory(document.getElementById('username').value.trim());
+}
+
+document.getElementById('username').addEventListener('focus', openHistory);
+document.getElementById('username').addEventListener('input', () =>
+    renderHistory(document.getElementById('username').value.trim())
+);
+document.addEventListener('click', e => {
+    const userBtnEl = document.getElementById('user-btn');
+    const drawer    = document.getElementById('search-drawer');
+    if (!drawer.contains(e.target) && !userBtnEl.contains(e.target)) {
+        closeHistory();
+        if (drawer.classList.contains('open')) hideSearch();
+    }
+});
+
+// ── Control handlers ────────────────────────────────────────────
+function onTileOpacity(v) {
+    ui.tileOpacity = v / 100;
+    document.getElementById('v-tile-opacity').textContent = `${v}%`;
+    tileLayer.setOpacity(ui.tileOpacity);
+}
+function onHeatOpacity(v) {
+    ui.heatOpacity = v / 100;
+    document.getElementById('v-heat-opacity').textContent = `${v}%`;
+    heatPane.style.opacity = ui.heatOpacity;
+}
+function onHeatRadius(v) {
+    ui.heatRadius = +v;
+    document.getElementById('v-heat-radius').textContent = v;
+    if (heatLayer) heatLayer.setOptions({ radius: ui.heatRadius });
+}
+function onHeatBlur(v) {
+    ui.heatBlur = +v;
+    document.getElementById('v-heat-blur').textContent = v;
+    if (heatLayer) heatLayer.setOptions({ blur: ui.heatBlur });
+}
+function onColorScheme(name) {
+    ui.colorScheme = name;
+    updateGradPreview(name);
+    if (heatLayer) heatLayer.setOptions({ gradient: GRADIENTS[name] });
+}
+function onHotZoneToggle(checked) {
+    ui.hotZonesOn = checked;
+    checked ? renderHotZones() : hotZoneGroup.clearLayers();
+}
+function onThreshold(v) {
+    ui.threshold = +v;
+    document.getElementById('v-hz-threshold').textContent = v;
+    if (ui.hotZonesOn) renderHotZones();
+}
+function onGridSize(v) {
+    ui.gridDeg = v / 10;
+    document.getElementById('v-hz-grid').textContent = ui.gridDeg.toFixed(1) + '°';
+    if (ui.hotZonesOn) renderHotZones();
+}
+
+// ── Hot zones ─────────────────────────────────────────────────────
+function renderHotZones() {
+    hotZoneGroup.clearLayers();
+    if (!ui.hotZonesOn || allPoints.length === 0) return;
+    const counts = new Map();
+    for (const [lat, lon] of allPoints) {
+        const key = `${Math.floor(lat / ui.gridDeg)},${Math.floor(lon / ui.gridDeg)}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    let maxCount = 0;
+    for (const [key, count] of counts) {
+        if (count < ui.threshold) continue;
+        maxCount = Math.max(maxCount, count);
+        const [r, c] = key.split(',').map(Number);
+        L.circleMarker([(r + 0.5) * ui.gridDeg, (c + 0.5) * ui.gridDeg], {
+            radius: Math.max(5, Math.min(20, Math.sqrt(count) * 1.8)),
+            color: '#cc1100', fillColor: '#ff3322', fillOpacity: 0.75, weight: 1.5,
+        }).bindTooltip(`${count} changesets`).addTo(hotZoneGroup);
+    }
+    if (maxCount > 0) {
+        const s = document.getElementById('hz-threshold');
+        s.max   = Math.max(s.max, maxCount);
+    }
+}
+
+// ── Heatmap update ────────────────────────────────────────────
+function applyPoints(pts, fitView) {
+    allPoints = pts;
+    if (!heatLayer) {
+        heatLayer = L.heatLayer(pts, {
+            radius: ui.heatRadius, blur: ui.heatBlur, maxZoom: 17,
+            gradient: GRADIENTS[ui.colorScheme], pane: 'heatPane',
+        }).addTo(map);
+        heatPane.style.opacity = ui.heatOpacity;
+    } else {
+        heatLayer.setLatLngs(pts);
+    }
+    if (fitView && pts.length > 0) {
+        map.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 12 });
+    }
+}
+
+// ── Fetch with per-request timeout ───────────────────────────────────────────
+function timedFetch(url, signal, ms = 8000) {
+    const timeoutCtrl = new AbortController();
+    const timerId = setTimeout(() => timeoutCtrl.abort(), ms);
+
+    let combined;
+    if (typeof AbortSignal.any === 'function') {
+        combined = AbortSignal.any([signal, timeoutCtrl.signal]);
+    } else {
+        const ctrl = new AbortController();
+        const fwd = (src, reason) => src.addEventListener('abort', () => ctrl.abort(reason), { once: true });
+        fwd(signal, signal.reason);
+        fwd(timeoutCtrl.signal, timeoutCtrl.signal.reason);
+        combined = ctrl.signal;
+    }
+
+    return fetch(url, { signal: combined })
+        .then(r => { clearTimeout(timerId); return r; })
+        .catch(err => {
+            clearTimeout(timerId);
+            if (timeoutCtrl.signal.aborted && !signal.aborted) {
+                const e = new Error(`Request timed out after ${ms / 1000}s — server may be slow or blocked`);
+                e.name = 'TimeoutError';
+                throw e;
+            }
+            throw err;
+        });
+}
+
+// ── Error classification ────────────────────────────────────────────
+function classifyError(err, username) {
+    const m = (err.message || '').toLowerCase();
+    const onPreview = location.hostname === 'htmlpreview.github.io';
+
+    if (err.name === 'TimeoutError' || m.includes('timed out')) {
+        if (onPreview)
+            return 'Blocked by htmlpreview.github.io Content Security Policy — it prevents cross-origin requests. Host the file on GitHub Pages or open it locally to use the OSM API.';
+        return 'OSM API request timed out. The server may be slow or requests may be blocked on this network. Check the debug console for details.';
+    }
+    if (m.includes('failed to fetch') || m.includes('networkerror') ||
+        m.includes('load failed') || m.includes('network request failed')) {
+        if (onPreview)
+            return 'Blocked by htmlpreview.github.io Content Security Policy — it prevents cross-origin requests. Host the file on GitHub Pages or open it locally to use the OSM API.';
+        return 'Cannot reach OSM API — check your internet connection. Check the debug console for details.';
+    }
+    if (m.includes('csp') || m.includes('security policy') || m.includes('content security'))
+        return 'A Content Security Policy is blocking requests to the OSM API. Check the debug console for CSP details.';
+    if (m.includes('unreachable')) return err.message;
+    if (m.includes('404') || m.includes('not found'))
+        return `User "${username}" was not found on OpenStreetMap.`;
+    if (m.includes('429') || m.includes('too many'))
+        return 'Rate limited by OSM API — wait a moment and try again.';
     return `Error: ${err.message}`;
 }
 
-function showMapMsg(msg){const el=document.getElementById('map-overlay-msg');el.textContent=msg;el.classList.add('visible');}
-function hideMapMsg(){document.getElementById('map-overlay-msg').classList.remove('visible');}
+function showMapMsg(msg) {
+    const el = document.getElementById('map-overlay-msg');
+    el.textContent = msg;
+    el.classList.add('visible');
+}
+function hideMapMsg() {
+    document.getElementById('map-overlay-msg').classList.remove('visible');
+}
 
-async function startSearch({refresh=false}={}){
-    const username=document.getElementById('username').value.trim();if(!username)return;
-    setStatus(`Searching for "${username}"…`);loadingStart();hideSearch();document.activeElement?.blur();
-    if(activeAbort)activeAbort.abort();activeAbort=new AbortController();const{signal}=activeAbort;
-    const btn=document.getElementById('search-btn');btn.disabled=true;btn.textContent='Loading…';
-    if(heatLayer){map.removeLayer(heatLayer);heatLayer=null;}hotZoneGroup.clearLayers();allPoints=[];hideMapMsg();
+// ── Search orchestration ────────────────────────────────────────────
+async function startSearch({ refresh = false } = {}) {
+    const username = document.getElementById('username').value.trim();
+    if (!username) return;
+
+    setStatus(`Searching for "${username}"…`);
+    loadingStart();
+    hideSearch();
+    document.activeElement?.blur();
+
+    if (activeAbort) activeAbort.abort();
+    activeAbort = new AbortController();
+    const { signal } = activeAbort;
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+
+    if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    hotZoneGroup.clearLayers();
+    allPoints = [];
+    hideMapMsg();
+
     console.log(`Starting search for user: ${username} (refresh=${refresh})`);
-    try{
-        const cached=loadUser(username);
-        if(cached&&!refresh){const pts=cached.changesets.map(c=>[c.lat,c.lon]);applyPoints(pts,true);setStatus(`Showing ${pts.length.toLocaleString()} cached changesets — checking for updates…`);await appendNew(username,cached,signal);}
-        else{await fetchFull(username,signal);}
-        if(signal.aborted)return;
-        if(allPoints.length===0){const msg=`No geolocated changesets found for "${username}".`;setStatus(msg);showMapMsg(msg);}
-        else{renderHotZones();setStatus(`${refresh?'Refreshed':'Done'} — ${allPoints.length.toLocaleString()} changesets for "${username}".`);}
-        loadingDone();touchHistory(username);
-    }catch(err){
-        if(err.name==='AbortError')return;
-        console.error(`Search failed: ${err.name}: ${err.message}`);loadingDone();
-        const msg=classifyError(err,username);setStatus(msg);showMapMsg(msg);
-    }finally{if(!signal.aborted){btn.disabled=false;btn.textContent='Search';}}
+
+    try {
+        const cached = loadUser(username);
+        if (cached && !refresh) {
+            const pts = cached.changesets.map(c => [c.lat, c.lon]);
+            applyPoints(pts, true);
+            setStatus(`Showing ${pts.length.toLocaleString()} cached changesets — checking for updates…`);
+            await appendNew(username, cached, signal);
+        } else {
+            await fetchFull(username, signal);
+        }
+
+        if (signal.aborted) return;
+        if (allPoints.length === 0) {
+            const msg = `No geolocated changesets found for "${username}".`;
+            setStatus(msg);
+            showMapMsg(msg);
+        } else {
+            renderHotZones();
+            setStatus(`${refresh ? 'Refreshed' : 'Done'} — ${allPoints.length.toLocaleString()} changesets for "${username}".`);
+        }
+        loadingDone();
+        touchHistory(username);
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error(`Search failed: ${err.name}: ${err.message}`);
+        loadingDone();
+        const msg = classifyError(err, username);
+        setStatus(msg);
+        showMapMsg(msg);
+    } finally {
+        if (!signal.aborted) { btn.disabled = false; btn.textContent = 'Search'; }
+    }
 }
 
-async function fetchFull(username,signal){
-    const seen=new Set(),collected=[];let boundsSet=false,pageNum=0;
-    for await(const pageData of changesetPages(username,signal)){
+// Full fetch: stream all pages, persist when done
+async function fetchFull(username, signal) {
+    const seen = new Set();
+    const collected = [];
+    let boundsSet = false;
+    let pageNum = 0;
+
+    for await (const pageData of changesetPages(username, signal)) {
         pageNum++;
-        for(const cs of pageData){if(seen.has(cs.id))continue;seen.add(cs.id);if(cs.min_lat!=null&&cs.max_lat!=null&&cs.min_lon!=null&&cs.max_lon!=null)collected.push({id:cs.id,lat:(cs.min_lat+cs.max_lat)/2,lon:(cs.min_lon+cs.max_lon)/2});}
-        if(collected.length===0){setStatus(`Page ${pageNum} — no geolocated changesets yet, continuing…`);continue;}
-        applyPoints(collected.map(c=>[c.lat,c.lon]),!boundsSet);if(!boundsSet)boundsSet=true;
-        setStatus(`Page ${pageNum} — ${collected.length.toLocaleString()} changesets loaded${pageData.length===100?', fetching more…':''}`);
+        for (const cs of pageData) {
+            if (seen.has(cs.id)) continue;
+            seen.add(cs.id);
+            if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
+                collected.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
+        }
+        if (collected.length === 0) {
+            setStatus(`Page ${pageNum} — no geolocated changesets yet, continuing…`);
+            continue;
+        }
+        applyPoints(collected.map(c => [c.lat, c.lon]), !boundsSet);
+        if (!boundsSet) boundsSet = true;
+        setStatus(`Page ${pageNum} — ${collected.length.toLocaleString()} changesets loaded${pageData.length === 100 ? ', fetching more…' : ''}`);
     }
-    if(!signal.aborted&&collected.length>0)saveUser(username,{changesets:collected,fetchedAt:new Date().toISOString()});
+
+    if (!signal.aborted && collected.length > 0)
+        saveUser(username, { changesets: collected, fetchedAt: new Date().toISOString() });
 }
 
-async function appendNew(username,cached,signal){
-    const knownIds=new Set(cached.changesets.map(c=>c.id)),added=[];let pageNum=0;
-    for await(const pageData of changesetPages(username,signal)){
-        pageNum++;setStatus(`Checking for new changesets (page ${pageNum})…`);
-        let allKnown=true;
-        for(const cs of pageData){if(knownIds.has(cs.id))continue;allKnown=false;if(cs.min_lat!=null&&cs.max_lat!=null&&cs.min_lon!=null&&cs.max_lon!=null)added.push({id:cs.id,lat:(cs.min_lat+cs.max_lat)/2,lon:(cs.min_lon+cs.max_lon)/2});}
-        if(allKnown)break;
+// Incremental refresh: only fetch pages until we hit a changeset we already have
+async function appendNew(username, cached, signal) {
+    const knownIds = new Set(cached.changesets.map(c => c.id));
+    const added = [];
+    let pageNum = 0;
+
+    for await (const pageData of changesetPages(username, signal)) {
+        pageNum++;
+        setStatus(`Checking for new changesets (page ${pageNum})…`);
+        let allKnown = true;
+        for (const cs of pageData) {
+            if (knownIds.has(cs.id)) continue;
+            allKnown = false;
+            if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
+                added.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
+        }
+        if (allKnown) break;
     }
-    if(signal.aborted)return;
-    if(added.length>0){const merged=[...added,...cached.changesets];saveUser(username,{changesets:merged,fetchedAt:new Date().toISOString()});applyPoints(merged.map(c=>[c.lat,c.lon]),false);setStatus(`Found ${added.length.toLocaleString()} new changesets — ${merged.length.toLocaleString()} total for "${username}".`);}
-    else{setStatus(`Up to date — ${cached.changesets.length.toLocaleString()} changesets for "${username}".`);}
+
+    if (signal.aborted) return;
+
+    if (added.length > 0) {
+        const merged = [...added, ...cached.changesets];
+        saveUser(username, { changesets: merged, fetchedAt: new Date().toISOString() });
+        applyPoints(merged.map(c => [c.lat, c.lon]), false);
+        setStatus(`Found ${added.length.toLocaleString()} new changesets — ${merged.length.toLocaleString()} total for "${username}".`);
+    } else {
+        setStatus(`Up to date — ${cached.changesets.length.toLocaleString()} changesets for "${username}".`);
+    }
 }
 
-async function* changesetPages(username,signal){
-    let params=`display_name=${encodeURIComponent(username)}&limit=100`;
-    while(true){
-        if(signal.aborted)return;
-        const url=`https://api.openstreetmap.org/api/0.6/changesets.json?${params}`;
+// ── Changeset page generator ────────────────────────────────────────────
+async function* changesetPages(username, signal) {
+    let params = `display_name=${encodeURIComponent(username)}&limit=100`;
+    while (true) {
+        if (signal.aborted) return;
+        const url = `https://api.openstreetmap.org/api/0.6/changesets.json?${params}`;
         console.log(`Fetching: ${url}`);
-        const resp=await timedFetch(url,signal);
+        const resp = await timedFetch(url, signal);
         console.log(`Response: ${resp.status} ${resp.statusText}`);
-        if(!resp.ok)throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
-        const{changesets=[]}=await resp.json();
+        if (!resp.ok) throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
+        const { changesets = [] } = await resp.json();
         console.log(`Page returned ${changesets.length} changesets`);
         yield changesets;
-        if(changesets.length<100)return;
-        const oldest=new Date(changesets[changesets.length-1].created_at);oldest.setSeconds(oldest.getSeconds()-1);
-        params=`display_name=${encodeURIComponent(username)}&limit=100&time=${encodeURIComponent(oldest.toISOString())}`;
+        if (changesets.length < 100) return;
+        const last = changesets[changesets.length - 1];
+        const oldest = new Date(last.closed_at || last.created_at);
+        oldest.setSeconds(oldest.getSeconds() - 1);
+        // time=T1,T2 → changesets closed between T1 and T2; paginate backwards with an open lower bound
+        params = `display_name=${encodeURIComponent(username)}&limit=100&time=1970-01-01T00:00:00.000Z,${encodeURIComponent(oldest.toISOString())}`;
     }
 }
 
-document.getElementById('username').addEventListener('keydown',e=>{if(e.key==='Enter')startSearch();if(e.key==='Escape'){closeHistory();hideSearch();}});
-document.getElementById('debug-modal').addEventListener('click',e=>{if(e.target===document.getElementById('debug-modal'))toggleDebug();});
-updateGradPreview(ui.colorScheme);heatPane.style.opacity=ui.heatOpacity;
+document.getElementById('username').addEventListener('keydown', e => {
+    if (e.key === 'Enter')  startSearch();
+    if (e.key === 'Escape') { closeHistory(); hideSearch(); }
+});
+
+// Close debug modal on backdrop click
+document.getElementById('debug-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('debug-modal')) toggleDebug();
+});
+
+// Init
+updateGradPreview(ui.colorScheme);
+heatPane.style.opacity = ui.heatOpacity;
 console.log('OSM Edit Heatmap iteration4 loaded');
 </script>
 </body>
