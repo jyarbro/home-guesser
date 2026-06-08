@@ -34,9 +34,14 @@
         }
 
         /* ── Line bar (toolbar border + loading indicator) ── */
+        /* translateZ(0) forces a compositing layer so overflow:hidden clips the fill */
         @keyframes bar-scan {
-            0%   { transform: translateX(-100%); }
-            100% { transform: translateX(500%); }
+            0%   { left: -50%; }
+            100% { left: 100%; }
+        }
+        @keyframes btn-pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.35; }
         }
         #line-bar {
             height: 3px;
@@ -44,23 +49,27 @@
             flex-shrink: 0;
             position: relative;
             overflow: hidden;
-            transition: box-shadow 0.3s ease;
+            transform: translateZ(0);
+            transition: background 0.2s ease, box-shadow 0.3s ease;
         }
         #line-bar.active {
-            box-shadow: 0 0 6px 1px rgba(0, 238, 255, 0.4);
+            background: #1a1a4a;
+            box-shadow: 0 0 10px 2px rgba(0, 238, 255, 0.55);
         }
         #line-bar-fill {
             position: absolute;
-            top: 0; bottom: 0; left: 0;
-            width: 30%;
-            background: linear-gradient(to right, transparent, #6868cc, #00eeff, transparent);
+            top: 0; bottom: 0;
+            left: -50%;
+            width: 50%;
+            background: linear-gradient(to right, transparent 0%, #6868cc 30%, #00eeff 50%, #6868cc 70%, transparent 100%);
             opacity: 0;
-            transition: opacity 0.2s ease;
+            transition: opacity 0.15s ease;
         }
         #line-bar.active #line-bar-fill {
             opacity: 1;
-            animation: bar-scan 1.1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            animation: bar-scan 0.9s linear infinite;
         }
+        #user-btn.loading { animation: btn-pulse 0.7s ease-in-out infinite; }
 
         /* ── Search drawer ── */
         #search-drawer {
@@ -251,7 +260,9 @@
             background: #12122a; color: #70709a;
             border-top: 1px solid #252550;
             min-height: 26px; display: flex; align-items: center; flex-shrink: 0;
+            transition: color 0.2s ease;
         }
+        #status.loading { color: #a8a8e8; }
         .leaflet-container { background: #1a1a3a; }
     </style>
 </head>
@@ -401,13 +412,21 @@ const ui = {
 function setStatus(msg) { document.getElementById('status').textContent = msg; }
 
 const lineBar  = document.getElementById('line-bar');
+const userBtn  = document.getElementById('user-btn');
+const statusEl = document.getElementById('status');
 let lineTimer  = null;
 function loadingStart() {
     clearTimeout(lineTimer);
     lineBar.classList.add('active');
+    userBtn.classList.add('loading');
+    statusEl.classList.add('loading');
 }
 function loadingDone() {
-    lineTimer = setTimeout(() => lineBar.classList.remove('active'), 300);
+    lineTimer = setTimeout(() => {
+        lineBar.classList.remove('active');
+        userBtn.classList.remove('loading');
+        statusEl.classList.remove('loading');
+    }, 300);
 }
 
 function toggleSearch() {
@@ -598,6 +617,10 @@ function applyPoints(pts, fitView) {
 async function startSearch({ refresh = false } = {}) {
     const username = document.getElementById('username').value.trim();
     if (!username) return;
+    // Clear instruction text and start visual feedback immediately,
+    // before the drawer animates closed
+    setStatus(`Searching "${username}"…`);
+    loadingStart();
     hideSearch();
     document.activeElement?.blur(); // dismiss mobile keyboard
 
@@ -612,9 +635,6 @@ async function startSearch({ refresh = false } = {}) {
     if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
     hotZoneGroup.clearLayers();
     allPoints = [];
-
-    setStatus(`Searching "${username}"…`);
-    loadingStart();
     try {
         const cached = loadUser(username);
 
