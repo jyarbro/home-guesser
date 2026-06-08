@@ -8,13 +8,15 @@ home-guesser/
   .git            ← file containing "gitdir: ./.bare" (routes git commands)
   iteration1/     ← worktree for branch `iteration1`
   iteration2/     ← worktree for branch `iteration2`
-  README.md       ← on branch `main`
+  iteration3/     ← worktree for branch `iteration3`
+  iteration4/     ← worktree for branch `iteration4`
+  iteration5/     ← worktree for branch `iteration5`
   CLAUDE.md       ← on branch `main`
 ```
 
 - The root directory is the `main` branch worktree (shared docs only, no app code).
 - Each iteration lives in its own branch and worktree subfolder.
-- `main` holds only `README.md` and `CLAUDE.md`.
+- `main` holds only `CLAUDE.md`.
 
 ## Convention: new major changes → new branch + worktree
 
@@ -27,7 +29,7 @@ Instead:
 5. Add `iterationN/` to `.gitignore` on `main` so the worktree dir doesn't show as untracked.
 6. Commit and push both the `iterationN` branch and the `main` branch.
 
-Minor fixes (bug, typo, small polish) can be committed directly to the existing iteration branch.
+Even small bug fixes that affect correctness should go into a new iteration — err on the side of incrementing.
 
 ## Change history
 
@@ -65,6 +67,11 @@ Minor fixes (bug, typo, small polish) can be committed directly to the existing 
 - Debug console modal (terminal icon in toolbar): color-coded log, error badge, Clear + Copy (with `execCommand` fallback)
 - Strategic `console.log` around each `changesetPages` fetch: URL, HTTP status, changeset count
 
+### iteration5 — pagination fix
+- Fixed infinite loop in `changesetPages`: `time=T1` (OSM API means "closed after T1") caused the same page to be re-fetched forever; changed to `time=epoch,T1` range format to page backwards through history
+- Uses `closed_at` (with `created_at` fallback) as the cursor, matching the OSM API sort order
+- Also fixes user history not being saved (saveUser/touchHistory were unreachable while the generator looped)
+
 ## To-do / potential next iterations
 
 ### iteration3 ideas
@@ -88,3 +95,4 @@ Minor fixes (bug, typo, small polish) can be committed directly to the existing 
 | iteration2 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration2/index.html |
 | iteration3 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration3/index.html |
 | iteration4 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration4/index.html |
+| iteration5 | https://yarbro.me/home-guesser/iteration5/ |
