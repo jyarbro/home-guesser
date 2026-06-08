@@ -85,6 +85,20 @@
         }
         #map { width: 100%; height: 100%; }
 
+        /* ── Loading bar ── */
+        #loading-bar {
+            position: absolute;
+            top: 0; left: 0;
+            height: 3px;
+            width: 0%;
+            background: linear-gradient(to right, #6868cc, #00eeff);
+            z-index: 1100;
+            transition: width 0.3s ease, opacity 0.4s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #loading-bar.active { opacity: 1; }
+
         /* ── Slide-out panel ── */
         #panel {
             position: absolute;
@@ -215,6 +229,7 @@
 
 <div id="map-wrap">
     <div id="map"></div>
+    <div id="loading-bar"></div>
 
     <div id="panel">
 
@@ -342,6 +357,29 @@
     // ── Helpers ──────────────────────────────────────────────────────────────
     function setStatus(msg) { document.getElementById('status').textContent = msg; }
 
+    const bar = document.getElementById('loading-bar');
+    let barTimer = null;
+    function loadingStart() {
+        clearTimeout(barTimer);
+        bar.style.transition = 'width 0.3s ease, opacity 0.4s ease';
+        bar.style.width = '0%';
+        bar.classList.add('active');
+        // Animate to 80% gradually; the last 20% fills on completion
+        requestAnimationFrame(() => { bar.style.width = '80%'; });
+    }
+    function loadingProgress(fraction) {
+        // fraction 0..1 represents known progress; cap at 90% until done
+        bar.style.width = Math.min(90, fraction * 90) + '%';
+    }
+    function loadingDone() {
+        bar.style.width = '100%';
+        barTimer = setTimeout(() => {
+            bar.style.transition = 'opacity 0.4s ease';
+            bar.classList.remove('active');
+            barTimer = setTimeout(() => { bar.style.width = '0%'; }, 420);
+        }, 200);
+    }
+
     function togglePanel() {
         const panel = document.getElementById('panel');
         const btn   = document.getElementById('panel-btn');
@@ -461,6 +499,7 @@
         const seen = new Set();
         let boundsSet = false;
 
+        loadingStart();
         try {
             for await (const page of changesetPages(username, signal)) {
                 for (const cs of page) {
@@ -506,8 +545,10 @@
                 renderHotZones();
                 setStatus(`Done — ${allPoints.length.toLocaleString()} changesets for "${username}".`);
             }
+            loadingDone();
         } catch (err) {
             if (err.name === 'AbortError') return;
+            loadingDone();
             setStatus(`Error: ${err.message}`);
         } finally {
             if (!signal.aborted) {
