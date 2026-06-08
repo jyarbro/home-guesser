@@ -9,6 +9,7 @@ OSM edit heatmap — visualizes a single OpenStreetMap user's changeset history 
 | iteration1 | [Open](https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration1/index.html) | `iteration1` |
 | iteration2 | [Open](https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration2/index.html) | `iteration2` |
 | iteration3 | [Open](https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration3/index.html) | `iteration3` |
+| iteration4 | [Open](https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration4/index.html) | `iteration4` |
 
 ## Features
 
@@ -28,3 +29,11 @@ OSM edit heatmap — visualizes a single OpenStreetMap user's changeset history 
 - Input `font-size: 16px` on mobile prevents iOS auto-zoom on focus
 - Keyboard dismissed automatically when a search starts
 - `map.invalidateSize()` called after the controls panel slide animation
+
+**iteration4** (debug console + robust networking on top of iteration3)
+- Per-request 15 s timeout via `timedFetch()` — no more silent hangs on restricted networks
+- Removed blocking connectivity pre-check; failures surface as clear error messages instead
+- JavaScript debug console modal (toolbar terminal icon): captures all `console.*` output from page load onward, color-coded by level, error badge count, Clear and Copy buttons
+- CSP violation detection via `securitypolicyviolation` event — catches htmlpreview.github.io blocking OSM API calls
+- Unhandled promise rejections captured in the debug log
+- Strategic `console.log` around each OSM API fetch (URL, HTTP status, changeset count)
