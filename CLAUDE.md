@@ -23,7 +23,9 @@ Instead:
 1. Create a new branch from the previous iteration: `git branch iterationN iterationN-1`
 2. Add a worktree: `git worktree add iterationN iterationN`
 3. Do all work inside `iterationN/`
-4. Merge `iterationN` into `main` once stable, then push both branches.
+4. **Always** update `README.md` on `main` with the new iteration's live preview link and feature summary.
+5. Add `iterationN/` to `.gitignore` on `main` so the worktree dir doesn't show as untracked.
+6. Commit and push both the `iterationN` branch and the `main` branch.
 
 Minor fixes (bug, typo, small polish) can be committed directly to the existing iteration branch.
 
@@ -46,6 +48,23 @@ Minor fixes (bug, typo, small polish) can be committed directly to the existing 
 - AbortController cancels in-flight fetches when a new search starts
 - Mobile fix updated to wrap `#username-wrap` (input + dropdown container) as a unit
 
+### iteration3 — mobile layout overhaul + search drawer
+- Fixes black map on iOS/Android: `100dvh` + `position: absolute; inset: 0` on `#map`
+- User icon button in toolbar opens a slide-down search drawer; closes after search starts
+- 3px loading bar across toolbar bottom animates with CSS keyframes (`left` property, not `transform`, for Safari clip compat)
+- Loading spinner on user icon during fetch; per-page status updates in status bar
+- In-map error overlay for network/404/rate-limit failures
+- 44px touch targets, `font-size: 16px` on input (prevents iOS auto-zoom), full-width controls panel on mobile
+
+### iteration4 — debug console + robust networking
+- `timedFetch()` wraps every OSM API call with a 15 s timeout — no silent hangs on restricted networks
+- Removed blocking `checkConnectivity()` pre-check; `classifyError()` handles `TimeoutError` and CSP violations
+- Console capture script in `<head>` records all `console.*` output from page load onward
+- `securitypolicyviolation` event listener logs CSP blocks (e.g. htmlpreview.github.io blocking cross-origin fetch)
+- `unhandledrejection` listener captures async failures
+- Debug console modal (terminal icon in toolbar): color-coded log, error badge, Clear + Copy (with `execCommand` fallback)
+- Strategic `console.log` around each `changesetPages` fetch: URL, HTTP status, changeset count
+
 ## To-do / potential next iterations
 
 ### iteration3 ideas
@@ -67,3 +86,5 @@ Minor fixes (bug, typo, small polish) can be committed directly to the existing 
 |---------|-----|
 | iteration1 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration1/index.html |
 | iteration2 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration2/index.html |
+| iteration3 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration3/index.html |
+| iteration4 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration4/index.html |
