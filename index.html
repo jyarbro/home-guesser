@@ -147,6 +147,20 @@
         #map-wrap { flex: 1; position: relative; overflow: hidden; }
         #map { width: 100%; height: 100%; }
 
+        /* ── Loading bar ── */
+        #loading-bar {
+            position: absolute;
+            top: 0; left: 0;
+            height: 3px;
+            width: 0%;
+            background: linear-gradient(to right, #6868cc, #00eeff);
+            z-index: 1100;
+            transition: width 0.3s ease, opacity 0.4s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #loading-bar.active { opacity: 1; }
+
         /* ── Slide-out panel ── */
         #panel {
             position: absolute;
@@ -215,6 +229,7 @@
 
 <div id="map-wrap">
     <div id="map"></div>
+    <div id="loading-bar"></div>
     <div id="panel">
         <div class="psec">
             <h3>Map</h3>
@@ -334,6 +349,24 @@ const ui = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+const bar = document.getElementById('loading-bar');
+let barTimer = null;
+function loadingStart() {
+    clearTimeout(barTimer);
+    bar.style.transition = 'width 0.3s ease, opacity 0.4s ease';
+    bar.style.width = '0%';
+    bar.classList.add('active');
+    requestAnimationFrame(() => { bar.style.width = '80%'; });
+}
+function loadingDone() {
+    bar.style.width = '100%';
+    barTimer = setTimeout(() => {
+        bar.style.transition = 'opacity 0.4s ease';
+        bar.classList.remove('active');
+        barTimer = setTimeout(() => { bar.style.width = '0%'; }, 420);
+    }, 200);
+}
 
 function togglePanel() {
     const open = document.getElementById('panel').classList.toggle('open');
@@ -503,6 +536,7 @@ async function startSearch({ refresh = false } = {}) {
     hotZoneGroup.clearLayers();
     allPoints = [];
 
+    loadingStart();
     try {
         const cached = loadUser(username);
 
@@ -523,9 +557,11 @@ async function startSearch({ refresh = false } = {}) {
             renderHotZones();
             setStatus(`${refresh ? 'Refreshed' : 'Done'} — ${allPoints.length.toLocaleString()} changesets for "${username}".`);
         }
+        loadingDone();
         touchHistory(username);
     } catch (err) {
         if (err.name === 'AbortError') return;
+        loadingDone();
         setStatus(`Error: ${err.message}`);
     } finally {
         if (!signal.aborted) { btn.disabled = false; btn.textContent = 'Search'; }
