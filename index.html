@@ -24,7 +24,6 @@
             gap: 10px;
             padding: 10px 16px;
             background: #12122a;
-            border-bottom: 1px solid #252550;
             flex-shrink: 0;
         }
         #toolbar h1 {
@@ -34,11 +33,46 @@
             white-space: nowrap;
         }
 
+        /* ── Line bar (toolbar border + loading indicator) ── */
+        #line-bar {
+            height: 3px;
+            background: #252550;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        #line-bar-fill {
+            position: absolute;
+            top: 0; bottom: 0; left: 0;
+            width: 0%;
+            background: linear-gradient(to right, #6868cc, #00eeff);
+            opacity: 0;
+            transition: width 0.3s ease, opacity 0.4s ease;
+        }
+
+        /* ── Search drawer ── */
+        #search-drawer {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.22s ease;
+            background: #12122a;
+            flex-shrink: 0;
+        }
+        #search-drawer.open {
+            max-height: 80px;
+            border-bottom: 1px solid #252550;
+        }
+        #search-inner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+        }
+
         /* Username input + history dropdown */
         #username-wrap {
             position: relative;
             flex: 1;
-            max-width: 300px;
         }
         #username {
             width: 100%;
@@ -130,6 +164,7 @@
             white-space: nowrap;
             flex-shrink: 0;
         }
+        .icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; }
         .tbtn:hover:not(:disabled) { background: #5555cc; }
         .tbtn:disabled { background: #252550; color: #50508a; cursor: default; }
         #panel-btn { margin-left: auto; background: #252550; }
@@ -137,18 +172,12 @@
         #panel-btn.active { background: #4545bb !important; }
 
         @media (max-width: 600px) {
-            /* Row 1: title + Controls btn  |  Row 2: input + Search btn */
-            #toolbar { flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
-            #toolbar h1 { order: 1; flex: 1; }
-            #panel-btn { order: 2; margin-left: 0; }
-            #username-wrap { order: 3; flex: 1; max-width: none; min-width: 0; }
-            #search-btn { order: 4; }
-
             /* 44px touch targets; 16px prevents iOS auto-zoom on focus */
             #username { min-height: 44px; font-size: 16px; padding: 10px 12px; }
             .tbtn { min-height: 44px; padding: 10px 14px; }
+            .icon-btn { padding: 10px 12px; }
 
-            /* Full-width drawer instead of 264px sliver */
+            /* Full-width controls panel */
             #panel { width: 100%; border-left: none; border-bottom: 1px solid #252550; }
 
             /* Larger tap areas in history list */
@@ -160,20 +189,6 @@
         /* min-height: 0 lets the flex item shrink so height: 100% works on #map */
         #map-wrap { flex: 1; min-height: 0; position: relative; overflow: hidden; }
         #map { position: absolute; inset: 0; }
-
-        /* ── Loading bar ── */
-        #loading-bar {
-            position: absolute;
-            top: 0; left: 0;
-            height: 3px;
-            width: 0%;
-            background: linear-gradient(to right, #6868cc, #00eeff);
-            z-index: 1100;
-            transition: width 0.3s ease, opacity 0.4s ease;
-            opacity: 0;
-            pointer-events: none;
-        }
-        #loading-bar.active { opacity: 1; }
 
         /* ── Slide-out panel ── */
         #panel {
@@ -232,18 +247,27 @@
 
 <div id="toolbar">
     <h1>OSM Edit Heatmap</h1>
-    <div id="username-wrap">
-        <input id="username" type="text" placeholder="Enter OSM username…"
-               autocomplete="off" spellcheck="false" />
-        <div id="history-list"></div>
+    <button id="user-btn" class="tbtn icon-btn" onclick="toggleSearch()" title="Search user" aria-label="Search user">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/></svg>
+    </button>
+    <button id="panel-btn" class="tbtn" onclick="togglePanel()">Controls</button>
+</div>
+
+<div id="line-bar"><div id="line-bar-fill"></div></div>
+
+<div id="search-drawer">
+    <div id="search-inner">
+        <div id="username-wrap">
+            <input id="username" type="text" placeholder="Enter OSM username…"
+                   autocomplete="off" spellcheck="false" />
+            <div id="history-list"></div>
+        </div>
+        <button id="search-btn" class="tbtn" onclick="startSearch()">Search</button>
     </div>
-    <button id="search-btn" class="tbtn" onclick="startSearch()">Search</button>
-    <button id="panel-btn"  class="tbtn" onclick="togglePanel()">Controls</button>
 </div>
 
 <div id="map-wrap">
     <div id="map"></div>
-    <div id="loading-bar"></div>
     <div id="panel">
         <div class="psec">
             <h3>Map</h3>
@@ -364,27 +388,54 @@ const ui = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function setStatus(msg) { document.getElementById('status').textContent = msg; }
 
-const bar = document.getElementById('loading-bar');
-let barTimer = null;
+const lineFill = document.getElementById('line-bar-fill');
+let lineTimer  = null;
 function loadingStart() {
-    clearTimeout(barTimer);
-    bar.style.transition = 'width 0.3s ease, opacity 0.4s ease';
-    bar.style.width = '0%';
-    bar.classList.add('active');
-    requestAnimationFrame(() => { bar.style.width = '80%'; });
+    clearTimeout(lineTimer);
+    lineFill.style.transition = 'width 0.3s ease, opacity 0.4s ease';
+    lineFill.style.width   = '0%';
+    lineFill.style.opacity = '1';
+    requestAnimationFrame(() => { lineFill.style.width = '80%'; });
 }
 function loadingDone() {
-    bar.style.width = '100%';
-    barTimer = setTimeout(() => {
-        bar.style.transition = 'opacity 0.4s ease';
-        bar.classList.remove('active');
-        barTimer = setTimeout(() => { bar.style.width = '0%'; }, 420);
+    lineFill.style.width = '100%';
+    lineTimer = setTimeout(() => {
+        lineFill.style.transition = 'opacity 0.4s ease';
+        lineFill.style.opacity = '0';
+        lineTimer = setTimeout(() => { lineFill.style.width = '0%'; }, 420);
     }, 200);
+}
+
+function toggleSearch() {
+    const drawer = document.getElementById('search-drawer');
+    const btn    = document.getElementById('user-btn');
+    const open   = drawer.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    if (open) {
+        // Close controls panel if it was open
+        document.getElementById('panel').classList.remove('open');
+        document.getElementById('panel-btn').classList.remove('active');
+        // After the slide animation, allow the history dropdown to overflow
+        drawer.addEventListener('transitionend', () => { drawer.style.overflow = 'visible'; }, { once: true });
+        setTimeout(() => document.getElementById('username').focus(), 50);
+    } else {
+        drawer.style.overflow = 'hidden';
+        closeHistory();
+    }
+}
+
+function hideSearch() {
+    const drawer = document.getElementById('search-drawer');
+    drawer.style.overflow = 'hidden';
+    drawer.classList.remove('open');
+    document.getElementById('user-btn').classList.remove('active');
+    closeHistory();
 }
 
 function togglePanel() {
     const open = document.getElementById('panel').classList.toggle('open');
     document.getElementById('panel-btn').classList.toggle('active', open);
+    if (open) hideSearch();
     // Redraw map after the slide transition so tiles fill the revealed area
     setTimeout(() => map.invalidateSize(), 230);
 }
@@ -448,7 +499,12 @@ document.getElementById('username').addEventListener('input', () =>
     renderHistory(document.getElementById('username').value.trim())
 );
 document.addEventListener('click', e => {
-    if (!document.getElementById('username-wrap').contains(e.target)) closeHistory();
+    const userBtn = document.getElementById('user-btn');
+    const drawer  = document.getElementById('search-drawer');
+    if (!drawer.contains(e.target) && !userBtn.contains(e.target)) {
+        closeHistory();
+        if (drawer.classList.contains('open')) hideSearch();
+    }
 });
 
 // ── Control handlers ──────────────────────────────────────────────────────────
@@ -538,7 +594,7 @@ function applyPoints(pts, fitView) {
 async function startSearch({ refresh = false } = {}) {
     const username = document.getElementById('username').value.trim();
     if (!username) return;
-    closeHistory();
+    hideSearch();
     document.activeElement?.blur(); // dismiss mobile keyboard
 
     if (activeAbort) activeAbort.abort();
@@ -658,8 +714,8 @@ async function* changesetPages(username, signal) {
 }
 
 document.getElementById('username').addEventListener('keydown', e => {
-    if (e.key === 'Enter')  { closeHistory(); startSearch(); }
-    if (e.key === 'Escape') closeHistory();
+    if (e.key === 'Enter')  startSearch();           // hideSearch called inside
+    if (e.key === 'Escape') { closeHistory(); hideSearch(); }
 });
 
 // Init
