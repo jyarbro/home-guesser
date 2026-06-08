@@ -8,6 +8,7 @@ OSM edit heatmap — visualizes a single OpenStreetMap user's changeset history 
 |---------|-------------|--------|
 | iteration1 | [Open](https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration1/index.html) | `iteration1` |
 | iteration2 | [Open](https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration2/index.html) | `iteration2` |
+| iteration3 | [Open](https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration3/index.html) | `iteration3` |
 
 ## Features
 
@@ -19,3 +20,11 @@ OSM edit heatmap — visualizes a single OpenStreetMap user's changeset history 
 - Changesets cached in `localStorage` — repeat visits render instantly from cache
 - Incremental refresh: only fetches changesets newer than what is already stored
 - Username history dropdown with per-user refresh and delete
+
+**iteration3** (mobile fixes on top of iteration2)
+- Fixes black map on iOS/Android: `100dvh` prevents browser-chrome overlap; `position: absolute` map fill ensures Leaflet always gets a real container size
+- Mobile toolbar wraps into two rows (title + Controls / input + Search) with 44px touch targets
+- Controls panel expands to full width on mobile instead of a 264px sliver
+- Input `font-size: 16px` on mobile prevents iOS auto-zoom on focus
+- Keyboard dismissed automatically when a search starts
+- `map.invalidateSize()` called after the controls panel slide animation
