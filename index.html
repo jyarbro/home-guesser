@@ -444,6 +444,12 @@
     <div id="panel">
         <div class="psec">
             <h3>Map</h3>
+            <div class="crow" style="margin-bottom:6px"><label>Style</label></div>
+            <select id="map-style" onchange="onMapStyle(this.value)">
+                <option value="Dark">Dark</option>
+                <option value="Grayscale">Grayscale</option>
+                <option value="Light">Light</option>
+            </select>
             <div class="crow"><label>Tile opacity</label><span class="val" id="v-tile-opacity">100%</span></div>
             <input type="range" id="tile-opacity" min="0" max="100" value="100" oninput="onTileOpacity(this.value)" />
         </div>
@@ -536,6 +542,13 @@ function removeUser(name) {
     localStorage.removeItem(userKey(lower));
 }
 
+// ── Map style presets ─────────────────────────────────────────────────────────
+const MAP_STYLES = {
+    Dark:      'grayscale(1) invert(1) brightness(0.7)',
+    Grayscale: 'grayscale(1) brightness(0.75)',
+    Light:     '',
+};
+
 // ── Gradient presets ──────────────────────────────────────────────────────────
 const GRADIENTS = {
     Classic: { 0.2: '#3333cc', 0.4: '#00aaff', 0.6: '#00ffaa', 0.8: '#ffff00', 1.0: '#ff4422' },
@@ -566,6 +579,7 @@ let allPoints    = [];  // [[lat, lon], ...]
 const ui = {
     tileOpacity: 1.0, heatOpacity: 0.8, heatRadius: 25, heatBlur: 18,
     colorScheme: 'Classic', hotZonesOn: false, threshold: 5, gridDeg: 1.0,
+    mapStyle: 'Dark',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -745,6 +759,10 @@ document.addEventListener('click', e => {
 });
 
 // ── Control handlers ──────────────────────────────────────────────────────────
+function onMapStyle(name) {
+    ui.mapStyle = name;
+    map.getPanes().tilePane.style.filter = MAP_STYLES[name] || '';
+}
 function onTileOpacity(v) {
     ui.tileOpacity = v / 100;
     document.getElementById('v-tile-opacity').textContent = `${v}%`;
@@ -1044,7 +1062,8 @@ document.getElementById('debug-modal').addEventListener('click', e => {
 // Init
 updateGradPreview(ui.colorScheme);
 heatPane.style.opacity = ui.heatOpacity;
-console.log('OSM Edit Heatmap iteration5 loaded');
+map.getPanes().tilePane.style.filter = MAP_STYLES[ui.mapStyle];
+console.log('OSM Edit Heatmap iteration6 loaded');
 </script>
 </body>
 </html>
