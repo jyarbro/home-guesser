@@ -69,6 +69,14 @@
         #panel-btn:hover:not(:disabled) { background: #303068 !important; }
         #panel-btn.active { background: #4545bb !important; }
 
+        @media (max-width: 600px) {
+            #toolbar { flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+            #toolbar h1 { order: 1; flex: 1; }
+            #panel-btn { order: 2; margin-left: 0; }
+            #username { order: 3; max-width: none; min-width: 0; }
+            #search-btn { order: 4; }
+        }
+
         /* ── Map wrapper (panel anchors here) ── */
         #map-wrap {
             flex: 1;
