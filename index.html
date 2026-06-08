@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSM Edit Heatmap</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0b0b1a; color: #c0c0e8; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 16px; }
+        h1 { font-size: 1.4rem; font-weight: 700; color: #e0e0ff; margin-bottom: 6px; }
+        p { font-size: 0.88rem; color: #6060a0; margin-bottom: 40px; }
+        .grid { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 420px; }
+        a.card { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #12122a; border: 1px solid #252550; border-radius: 10px; text-decoration: none; color: inherit; transition: background 0.15s, border-color 0.15s; }
+        a.card:hover { background: #1a1a38; border-color: #4545bb; }
+        .card-label { font-size: 0.95rem; font-weight: 600; color: #c8c8f0; }
+        .card-desc { font-size: 0.75rem; color: #50509a; margin-top: 3px; }
+        .card-arrow { color: #4545bb; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+    <h1>OSM Edit Heatmap</h1>
+    <p>Visualize an OpenStreetMap user's changeset history as a heatmap.</p>
+    <div class="grid">
+        <a class="card" href="iteration4/">
+            <div><div class="card-label">Iteration 4</div><div class="card-desc">Debug console + per-request timeout (latest)</div></div>
+            <span class="card-arrow">&#8250;</span>
+        </a>
+        <a class="card" href="iteration3/">
+            <div><div class="card-label">Iteration 3</div><div class="card-desc">Mobile layout overhaul + search drawer</div></div>
+            <span class="card-arrow">&#8250;</span>
+        </a>
+        <a class="card" href="iteration2/">
+            <div><div class="card-label">Iteration 2</div><div class="card-desc">localStorage caching + user history</div></div>
+            <span class="card-arrow">&#8250;</span>
+        </a>
+        <a class="card" href="iteration1/">
+            <div><div class="card-label">Iteration 1</div><div class="card-desc">Original streaming heatmap</div></div>
+            <span class="card-arrow">&#8250;</span>
+        </a>
+    </div>
+</body>
+</html>
