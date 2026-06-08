@@ -11,6 +11,7 @@ home-guesser/
   iteration3/     ← worktree for branch `iteration3`
   iteration4/     ← worktree for branch `iteration4`
   iteration5/     ← worktree for branch `iteration5`
+  iteration6/     ← worktree for branch `iteration6`
   CLAUDE.md       ← on branch `main`
 ```
 
@@ -67,6 +68,11 @@ Even small bug fixes that affect correctness should go into a new iteration — 
 - Debug console modal (terminal icon in toolbar): color-coded log, error badge, Clear + Copy (with `execCommand` fallback)
 - Strategic `console.log` around each `changesetPages` fetch: URL, HTTP status, changeset count
 
+### iteration6 — dark map tiles for heatmap contrast
+- Default map tile style is "Dark" (`grayscale(1) invert(1) brightness(0.7)` CSS filter on tile pane) — heatmap colors now pop against a neutral dark background instead of competing with OSM's light-blue water tiles
+- "Map style" dropdown in Controls panel: Dark (default), Grayscale, Light
+- Filter applied directly to `map.getPanes().tilePane.style.filter` — zero extra requests, works with any tile source
+
 ### iteration5 — pagination fix
 - Fixed infinite loop in `changesetPages`: `time=T1` (OSM API means "closed after T1") caused the same page to be re-fetched forever; changed to `time=epoch,T1` range format to page backwards through history
 - Uses `closed_at` (with `created_at` fallback) as the cursor, matching the OSM API sort order
@@ -96,3 +102,4 @@ Even small bug fixes that affect correctness should go into a new iteration — 
 | iteration3 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration3/index.html |
 | iteration4 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration4/index.html |
 | iteration5 | https://yarbro.me/home-guesser/iteration5/ |
+| iteration6 | https://yarbro.me/home-guesser/iteration6/ |
