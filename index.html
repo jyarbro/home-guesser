@@ -356,6 +356,7 @@
             border-radius: 10px;
             width: 100%;
             max-width: 640px;
+            height: 65vh;        /* explicit height so flex:1 on #debug-log works */
             max-height: 80vh;
             display: flex;
             flex-direction: column;
@@ -827,7 +828,7 @@ function applyPoints(pts, fitView) {
 }
 
 // ── Fetch with per-request timeout ───────────────────────────────────────────
-function timedFetch(url, signal, ms = 15000) {
+function timedFetch(url, signal, ms = 8000) {
     const timeoutCtrl = new AbortController();
     const timerId = setTimeout(() => timeoutCtrl.abort(), ms);
 
@@ -858,13 +859,21 @@ function timedFetch(url, signal, ms = 15000) {
 // ── Error classification ──────────────────────────────────────────────────────
 function classifyError(err, username) {
     const m = (err.message || '').toLowerCase();
-    if (err.name === 'TimeoutError' || m.includes('timed out'))
-        return `OSM API request timed out. The server may be slow or fetch requests may be blocked on this network. Open the debug console for details.`;
-    if (m.includes('csp') || m.includes('security policy') || m.includes('content security'))
-        return 'A Content Security Policy is blocking requests to the OSM API. Open the debug console for CSP details.';
+    const onPreview = location.hostname === 'htmlpreview.github.io';
+
+    if (err.name === 'TimeoutError' || m.includes('timed out')) {
+        if (onPreview)
+            return 'Blocked by htmlpreview.github.io Content Security Policy — it prevents cross-origin requests. Host the file on GitHub Pages or open it locally to use the OSM API.';
+        return 'OSM API request timed out. The server may be slow or requests may be blocked on this network. Check the debug console for details.';
+    }
     if (m.includes('failed to fetch') || m.includes('networkerror') ||
-        m.includes('load failed') || m.includes('network request failed'))
-        return 'Cannot reach OSM API — check your internet connection. Open the debug console for details.';
+        m.includes('load failed') || m.includes('network request failed')) {
+        if (onPreview)
+            return 'Blocked by htmlpreview.github.io Content Security Policy — it prevents cross-origin requests. Host the file on GitHub Pages or open it locally to use the OSM API.';
+        return 'Cannot reach OSM API — check your internet connection. Check the debug console for details.';
+    }
+    if (m.includes('csp') || m.includes('security policy') || m.includes('content security'))
+        return 'A Content Security Policy is blocking requests to the OSM API. Check the debug console for CSP details.';
     if (m.includes('unreachable')) return err.message;
     if (m.includes('404') || m.includes('not found'))
         return `User "${username}" was not found on OpenStreetMap.`;
