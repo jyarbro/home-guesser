@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSM Edit Heatmap</title>
+
+    <!-- Console capture must run before any other script so all output is recorded -->
+    <script>
+    window.__debugEntries = [];
+    window.__debugErrorCount = 0;
+    (function () {
+        const orig = {};
+        ['log', 'info', 'warn', 'error'].forEach(level => {
+            orig[level] = console[level].bind(console);
+            console[level] = function (...args) {
+                orig[level](...args);
+                const text = args.map(a => {
+                    try { return (typeof a === 'object' && a !== null) ? JSON.stringify(a) : String(a); }
+                    catch { return '[unserializable]'; }
+                }).join(' ');
+                const entry = { level, text, t: new Date().toLocaleTimeString() };
+                window.__debugEntries.push(entry);
+                if (level === 'error') {
+                    window.__debugErrorCount++;
+                    const badge = document.getElementById('debug-badge');
+                    if (badge) { badge.textContent = window.__debugErrorCount; badge.style.display = 'flex'; }
+                }
+                if (window.__debugLogEl) window.__appendDebugEntry(entry);
+            };
+        });
+
+        window.addEventListener('securitypolicyviolation', e => {
+            console.error(`CSP blocked: ${e.blockedURI} (directive: ${e.violatedDirective})`);
+        });
+
+        window.addEventListener('unhandledrejection', e => {
+            console.error(`Unhandled rejection: ${e.reason}`);
+        });
+    })();
+    </script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh; /* tracks visible viewport on iOS/Android, avoiding chrome overlap */
+            background: #12122a;
+        }
+
+        /* ── Toolbar ── */
+        #toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: #12122a;
+            flex-shrink: 0;
+        }
+        #toolbar h1 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #c8c8f0;
+            white-space: nowrap;
+        }
+
+        /* ── Line bar (toolbar border + loading indicator) ── */
+        /* translateZ(0) forces a compositing layer so overflow:hidden clips the fill */
+        @keyframes bar-scan {
+            0%   { left: -50%; }
+            100% { left: 100%; }
+        }
+        @keyframes icon-spin {
+            to { transform: rotate(360deg); }
+        }
+        #line-bar {
+            height: 3px;
+            background: #252550;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            transform: translateZ(0);
+            transition: background 0.2s ease, box-shadow 0.3s ease;
+        }
+        #line-bar.active {
+            background: #1a1a4a;
+            box-shadow: 0 0 10px 2px rgba(0, 238, 255, 0.55);
+        }
+        #line-bar-fill {
+            position: absolute;
+            top: 0; bottom: 0;
+            left: -50%;
+            width: 50%;
+            background: linear-gradient(to right, transparent 0%, #6868cc 30%, #00eeff 50%, #6868cc 70%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        #line-bar.active #line-bar-fill {
+            opacity: 1;
+            animation: bar-scan 0.9s linear infinite;
+        }
+        #user-btn.loading svg { animation: icon-spin 0.8s linear infinite; transform-origin: center; }
+
+        /* ── Search drawer ── */
+        #search-drawer {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.22s ease;
+            background: #12122a;
+            flex-shrink: 0;
+        }
+        #search-drawer.open {
+            max-height: 80px;
+            border-bottom: 1px solid #252550;
+        }
+        #search-inner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+        }
+
+        /* Username input + history dropdown */
+        #username-wrap {
+            position: relative;
+            flex: 1;
+        }
+        #username {
+            width: 100%;
+            padding: 7px 12px;
+            border: 1px solid #303068;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: #1e1e42;
+            color: #e0e0ff;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        #username::placeholder { color: #50508a; }
+        #username:focus { border-color: #6868cc; }
+        #username-wrap.open #username {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-color: #1c1c40;
+        }
+
+        #history-list {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0; right: 0;
+            background: #1e1e42;
+            border: 1px solid #303068;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            z-index: 2000;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        #username-wrap.open #history-list { display: block; }
+
+        .hist-item {
+            display: flex;
+            align-items: center;
+            padding: 0 6px 0 0;
+            transition: background 0.1s;
+        }
+        .hist-item:hover { background: #28285a; }
+        .hist-name {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 0.88rem;
+            color: #c0c0ee;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .hist-meta {
+            font-size: 0.72rem;
+            color: #50509a;
+            white-space: nowrap;
+            padding: 0 6px;
+        }
+        .hist-refresh, .hist-delete {
+            padding: 4px 6px;
+            background: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: color 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
+        .hist-refresh { color: #50509a; }
+        .hist-refresh:hover { color: #9090cc; background: #303068; }
+        .hist-delete { color: #50509a; }
+        .hist-delete:hover { color: #cc4444; background: #3a1818; }
+        .hist-empty {
+            padding: 10px 12px;
+            font-size: 0.82rem;
+            color: #50509a;
+        }
+
+        .tbtn {
+            padding: 7px 16px;
+            background: #4545bb;
+            color: #e8e8ff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; }
+        .tbtn:hover:not(:disabled) { background: #5555cc; }
+        .tbtn:disabled { background: #252550; color: #50508a; cursor: default; }
+        #panel-btn { margin-left: auto; background: #252550; }
+        #panel-btn:hover:not(:disabled) { background: #303068 !important; }
+        #panel-btn.active { background: #4545bb !important; }
+        #debug-btn { position: relative; background: #252550; }
+        #debug-btn:hover:not(:disabled) { background: #303068 !important; }
+        #debug-btn.has-errors { background: #3a1818 !important; }
+        #debug-badge {
+            display: none;
+            position: absolute;
+            top: 3px; right: 3px;
+            background: #cc3333;
+            color: #fff;
+            font-size: 0.58rem;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        @media (max-width: 600px) {
+            /* 44px touch targets; 16px prevents iOS auto-zoom on focus */
+            #username { min-height: 44px; font-size: 16px; padding: 10px 12px; }
+            .tbtn { min-height: 44px; padding: 10px 14px; }
+            .icon-btn { padding: 10px 12px; }
+
+            /* Full-width controls panel */
+            #panel { width: 100%; border-left: none; border-bottom: 1px solid #252550; }
+
+            /* Larger tap areas in history list */
+            .hist-name { padding: 12px; }
+            .hist-refresh, .hist-delete { padding: 10px 8px; }
+        }
+
+        /* ── Map wrapper ── */
+        /* min-height: 0 lets the flex item shrink so height: 100% works on #map */
+        #map-wrap { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+        #map { position: absolute; inset: 0; }
+
+        /* ── Slide-out panel ── */
+        #panel {
+            position: absolute;
+            top: 0; right: 0;
+            width: 264px;
+            height: 100%;
+            background: rgba(11, 11, 26, 0.97);
+            border-left: 1px solid #252550;
+            z-index: 1000;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.22s ease;
+        }
+        #panel.open { transform: translateX(0); }
+
+        .psec { padding: 14px 16px; border-bottom: 1px solid #1c1c3a; }
+        .psec h3 {
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 1.2px; text-transform: uppercase;
+            color: #4444aa; margin-bottom: 14px;
+        }
+        .crow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .crow label { font-size: 0.82rem; color: #9090cc; }
+        .crow .val { font-size: 0.78rem; color: #6868aa; min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+
+        input[type=range] { width: 100%; margin: 4px 0 12px; accent-color: #6868cc; cursor: pointer; }
+        select {
+            width: 100%; padding: 6px 8px;
+            background: #1a1a3a; color: #b0b0ee;
+            border: 1px solid #303068; border-radius: 5px;
+            font-size: 0.85rem; outline: none; cursor: pointer; margin-bottom: 8px;
+        }
+        #grad-preview { height: 8px; border-radius: 4px; margin-bottom: 4px; }
+
+        .trow { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+        .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .ttrack { position: absolute; inset: 0; background: #252550; border-radius: 20px; cursor: pointer; transition: background 0.18s; }
+        .ttrack::after { content: ''; position: absolute; width: 14px; height: 14px; background: #6060aa; border-radius: 50%; top: 3px; left: 3px; transition: left 0.18s, background 0.18s; }
+        .toggle input:checked + .ttrack { background: #4545bb; }
+        .toggle input:checked + .ttrack::after { left: 19px; background: #fff; }
+        .tlabel { font-size: 0.84rem; color: #9090cc; }
+
+        /* ── Status bar ── */
+        #status {
+            padding: 5px 16px; font-size: 0.78rem;
+            background: #12122a; color: #70709a;
+            border-top: 1px solid #252550;
+            min-height: 26px; display: flex; align-items: center; flex-shrink: 0;
+            transition: color 0.2s ease;
+        }
+        #status.loading { color: #a8a8e8; }
+
+        /* ── Map message overlay (errors / empty results) ── */
+        #map-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; z-index: 800; padding: 24px;
+        }
+        #map-overlay-msg {
+            display: none;
+            background: rgba(11, 11, 26, 0.93);
+            color: #c0c0f0;
+            padding: 18px 24px;
+            border-radius: 10px;
+            border: 1px solid #3a3a6a;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 88%;
+            line-height: 1.55;
+            pointer-events: auto;
+        }
+        #map-overlay-msg.visible { display: block; }
+        .leaflet-container { background: #1a1a3a; }
+
+        /* ── Debug modal ── */
+        #debug-modal {
+            display: none;
+            position: fixed; inset: 0;
+            z-index: 9000;
+            background: rgba(0, 0, 0, 0.72);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        #debug-modal.open { display: flex; }
+        #debug-box {
+            background: #0d0d20;
+            border: 1px solid #303068;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 640px;
+            height: 65vh;        /* explicit height so flex:1 on #debug-log works */
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #debug-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid #252550;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        #debug-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #c0c0f0;
+            flex: 1;
+        }
+        .dbtn {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            background: #252550;
+            color: #a0a0d0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .dbtn:hover { background: #303068; color: #e0e0ff; }
+        #debug-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: ui-monospace, 'Cascadia Code', 'Menlo', monospace;
+            font-size: 0.72rem;
+            line-height: 1.6;
+            background: #080816;
+        }
+        .dlog-entry {
+            padding: 1px 4px;
+            border-bottom: 1px solid #131326;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+        .dlog-log   { color: #9090bb; }
+        .dlog-info  { color: #6aadff; }
+        .dlog-warn  { color: #ffbe55; }
+        .dlog-error { color: #ff7070; }
+    </style>
+</head>
+<body>
+
+<div id="toolbar">
+    <h1>OSM Edit Heatmap</h1>
+    <button id="user-btn" class="tbtn icon-btn" onclick="toggleSearch()" title="Search user" aria-label="Search user">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/></svg>
+    </button>
+    <button id="debug-btn" class="tbtn icon-btn" onclick="toggleDebug()" title="Debug console" aria-label="Debug console">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"/>
+            <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
+        </svg>
+        <span id="debug-badge">0</span>
+    </button>
+    <button id="panel-btn" class="tbtn" onclick="togglePanel()">Controls</button>
+</div>
+
+<div id="line-bar"><div id="line-bar-fill"></div></div>
+
+<div id="search-drawer">
+    <div id="search-inner">
+        <div id="username-wrap">
+            <input id="username" type="text" placeholder="Enter OSM username…"
+                   autocomplete="off" spellcheck="false" />
+            <div id="history-list"></div>
+        </div>
+        <button id="search-btn" class="tbtn" onclick="startSearch()">Search</button>
+    </div>
+</div>
+
+<div id="map-wrap">
+    <div id="map"></div>
+    <div id="map-overlay"><div id="map-overlay-msg"></div></div>
+    <div id="panel">
+        <div class="psec">
+            <h3>Map</h3>
+            <div class="crow" style="margin-bottom:6px"><label>Style</label></div>
+            <select id="map-style" onchange="onMapStyle(this.value)">
+                <option value="Dark">Dark</option>
+                <option value="Grayscale">Grayscale</option>
+                <option value="Light">Light</option>
+            </select>
+            <div class="crow"><label>Tile opacity</label><span class="val" id="v-tile-opacity">100%</span></div>
+            <input type="range" id="tile-opacity" min="0" max="100" value="100" oninput="onTileOpacity(this.value)" />
+        </div>
+        <div class="psec">
+            <h3>Heatmap</h3>
+            <div class="crow"><label>Opacity</label><span class="val" id="v-heat-opacity">80%</span></div>
+            <input type="range" id="heat-opacity" min="0" max="100" value="80" oninput="onHeatOpacity(this.value)" />
+            <div class="crow"><label>Radius</label><span class="val" id="v-heat-radius">25</span></div>
+            <input type="range" id="heat-radius" min="5" max="60" value="25" oninput="onHeatRadius(this.value)" />
+            <div class="crow"><label>Blur</label><span class="val" id="v-heat-blur">18</span></div>
+            <input type="range" id="heat-blur" min="1" max="50" value="18" oninput="onHeatBlur(this.value)" />
+            <div class="crow" style="margin-bottom:6px"><label>Color scheme</label></div>
+            <select id="color-scheme" onchange="onColorScheme(this.value)">
+                <option value="Classic">Classic</option>
+                <option value="Plasma">Plasma</option>
+                <option value="Inferno">Inferno</option>
+                <option value="Hot">Hot</option>
+                <option value="Cool">Cool</option>
+                <option value="Neon">Neon</option>
+                <option value="Viridis">Viridis</option>
+            </select>
+            <div id="grad-preview"></div>
+        </div>
+        <div class="psec">
+            <h3>Hot Zones</h3>
+            <div class="trow">
+                <label class="toggle">
+                    <input type="checkbox" id="hz-toggle" onchange="onHotZoneToggle(this.checked)" />
+                    <span class="ttrack"></span>
+                </label>
+                <span class="tlabel">Show centroids</span>
+            </div>
+            <div class="crow"><label>Min changesets</label><span class="val" id="v-hz-threshold">5</span></div>
+            <input type="range" id="hz-threshold" min="1" max="100" value="5" oninput="onThreshold(this.value)" />
+            <div class="crow"><label>Grid size</label><span class="val" id="v-hz-grid">1.0°</span></div>
+            <input type="range" id="hz-grid" min="1" max="30" value="10" oninput="onGridSize(this.value)" />
+        </div>
+    </div>
+</div>
+
+<div id="status">Enter an OSM username above to visualize their edit history.</div>
+
+<!-- Debug console modal -->
+<div id="debug-modal">
+    <div id="debug-box">
+        <div id="debug-header">
+            <span id="debug-title">Debug Console</span>
+            <button class="dbtn" onclick="debugClear()">Clear</button>
+            <button class="dbtn" onclick="debugCopy()">Copy</button>
+            <button class="dbtn" onclick="toggleDebug()">&#x2715;</button>
+        </div>
+        <div id="debug-log"></div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+// ── localStorage helpers ──────────────────────────────────────────────────────
+const STORE_PREFIX = 'osm_user:';
+const HISTORY_KEY  = 'osm_history';
+
+function userKey(name) { return STORE_PREFIX + name.toLowerCase(); }
+
+function loadUser(name) {
+    try { const r = localStorage.getItem(userKey(name)); return r ? JSON.parse(r) : null; }
+    catch { return null; }
+}
+
+function saveUser(name, data) {
+    try { localStorage.setItem(userKey(name), JSON.stringify(data)); }
+    catch (e) { console.warn('localStorage quota exceeded:', e); }
+}
+
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch { return []; }
+}
+
+function saveHistory(list) { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+
+function touchHistory(name) {
+    const lower = name.toLowerCase();
+    saveHistory([lower, ...loadHistory().filter(u => u !== lower)]);
+}
+
+function removeUser(name) {
+    const lower = name.toLowerCase();
+    saveHistory(loadHistory().filter(u => u !== lower));
+    localStorage.removeItem(userKey(lower));
+}
+
+// ── Map style presets ─────────────────────────────────────────────────────────
+const MAP_STYLES = {
+    Dark:      'grayscale(1) invert(1) brightness(0.7)',
+    Grayscale: 'grayscale(1) brightness(0.75)',
+    Light:     '',
+};
+
+// ── Gradient presets ──────────────────────────────────────────────────────────
+const GRADIENTS = {
+    Classic: { 0.2: '#3333cc', 0.4: '#00aaff', 0.6: '#00ffaa', 0.8: '#ffff00', 1.0: '#ff4422' },
+    Plasma:  { 0.0: '#2d004f', 0.25: '#7e03a8', 0.5: '#cc4778', 0.75: '#f89441', 1.0: '#fbf521' },
+    Inferno: { 0.0: '#200001', 0.25: '#57106e', 0.5: '#bc3754', 0.75: '#f98e09', 1.0: '#fcffa4' },
+    Hot:     { 0.0: '#1a0000', 0.35: '#dd1100', 0.7: '#ffaa00', 1.0: '#ffffff' },
+    Cool:    { 0.2: '#001199', 0.5: '#0077ff', 0.8: '#00eeff',  1.0: '#ffffff' },
+    Neon:    { 0.0: '#0d0020', 0.25: '#aa00ff', 0.5: '#ff0066', 0.75: '#ff9900', 1.0: '#ffff00' },
+    Viridis: { 0.0: '#440154', 0.25: '#31688e', 0.5: '#35b779', 0.75: '#90d743', 1.0: '#fde725' },
+};
+
+// ── Map setup ─────────────────────────────────────────────────────────────────
+const map       = L.map('map').setView([20, 0], 2);
+const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+}).addTo(map);
+
+const heatPane = map.createPane('heatPane');
+heatPane.style.zIndex = 400;
+
+// ── App state ─────────────────────────────────────────────────────────────────
+let heatLayer    = null;
+let hotZoneGroup = L.layerGroup().addTo(map);
+let activeAbort  = null;
+let allPoints    = [];  // [[lat, lon], ...]
+
+const ui = {
+    tileOpacity: 1.0, heatOpacity: 0.8, heatRadius: 25, heatBlur: 18,
+    colorScheme: 'Classic', hotZonesOn: false, threshold: 5, gridDeg: 1.0,
+    mapStyle: 'Dark',
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+const lineBar  = document.getElementById('line-bar');
+const userBtn  = document.getElementById('user-btn');
+const statusEl = document.getElementById('status');
+let lineTimer  = null;
+function loadingStart() {
+    clearTimeout(lineTimer);
+    lineBar.classList.add('active');
+    userBtn.classList.add('loading');
+    statusEl.classList.add('loading');
+}
+function loadingDone() {
+    lineTimer = setTimeout(() => {
+        lineBar.classList.remove('active');
+        userBtn.classList.remove('loading');
+        statusEl.classList.remove('loading');
+    }, 300);
+}
+
+function toggleSearch() {
+    const drawer = document.getElementById('search-drawer');
+    const btn    = document.getElementById('user-btn');
+    const open   = drawer.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    if (open) {
+        document.getElementById('panel').classList.remove('open');
+        document.getElementById('panel-btn').classList.remove('active');
+        drawer.addEventListener('transitionend', () => { drawer.style.overflow = 'visible'; }, { once: true });
+        setTimeout(() => document.getElementById('username').focus(), 50);
+    } else {
+        drawer.style.overflow = 'hidden';
+        closeHistory();
+    }
+}
+
+function hideSearch() {
+    const drawer = document.getElementById('search-drawer');
+    drawer.style.overflow = 'hidden';
+    drawer.classList.remove('open');
+    document.getElementById('user-btn').classList.remove('active');
+    closeHistory();
+}
+
+function togglePanel() {
+    const open = document.getElementById('panel').classList.toggle('open');
+    document.getElementById('panel-btn').classList.toggle('active', open);
+    if (open) hideSearch();
+    setTimeout(() => map.invalidateSize(), 230);
+}
+
+function updateGradPreview(scheme) {
+    const stops = Object.entries(GRADIENTS[scheme])
+        .sort(([a], [b]) => a - b)
+        .map(([p, c]) => `${c} ${(p * 100).toFixed(0)}%`)
+        .join(', ');
+    document.getElementById('grad-preview').style.background = `linear-gradient(to right, ${stops})`;
+}
+
+// ── Debug console ─────────────────────────────────────────────────────────────
+window.__debugLogEl = null;
+
+window.__appendDebugEntry = function (entry) {
+    if (!window.__debugLogEl) return;
+    const div = document.createElement('div');
+    div.className = `dlog-entry dlog-${entry.level}`;
+    div.textContent = `[${entry.t}] [${entry.level.toUpperCase()}] ${entry.text}`;
+    window.__debugLogEl.appendChild(div);
+    window.__debugLogEl.scrollTop = window.__debugLogEl.scrollHeight;
+};
+
+function toggleDebug() {
+    const modal = document.getElementById('debug-modal');
+    const isOpen = modal.classList.toggle('open');
+    if (isOpen) {
+        const logEl = document.getElementById('debug-log');
+        window.__debugLogEl = logEl;
+        logEl.innerHTML = '';
+        window.__debugEntries.forEach(e => window.__appendDebugEntry(e));
+        logEl.scrollTop = logEl.scrollHeight;
+        // Clear the error badge
+        window.__debugErrorCount = 0;
+        const badge = document.getElementById('debug-badge');
+        badge.style.display = 'none';
+        document.getElementById('debug-btn').classList.remove('has-errors');
+    } else {
+        window.__debugLogEl = null;
+    }
+}
+
+function debugClear() {
+    window.__debugEntries = [];
+    if (window.__debugLogEl) window.__debugLogEl.innerHTML = '';
+}
+
+function debugCopy() {
+    const text = window.__debugEntries
+        .map(e => `[${e.t}] [${e.level.toUpperCase()}] ${e.text}`)
+        .join('\n');
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta);
+}
+
+// ── History dropdown ──────────────────────────────────────────────────────────
+function renderHistory(filter = '') {
+    const items = loadHistory().filter(u => !filter || u.includes(filter.toLowerCase()));
+    const list  = document.getElementById('history-list');
+    if (items.length === 0) {
+        list.innerHTML = `<div class="hist-empty">${filter ? 'No matches.' : 'No saved users yet.'}</div>`;
+        return;
+    }
+    list.innerHTML = items.map(u => {
+        const d    = loadUser(u);
+        const meta = d ? `${d.changesets.length.toLocaleString()} cs &middot; ${new Date(d.fetchedAt).toLocaleDateString()}` : '';
+        return `<div class="hist-item">
+            <span class="hist-name" onclick="selectHistUser('${u}')">${u}</span>
+            <span class="hist-meta">${meta}</span>
+            <button class="hist-refresh" title="Check for new changesets" onclick="histRefresh('${u}',event)">&#8635;</button>
+            <button class="hist-delete"  title="Remove from history"      onclick="histDelete('${u}',event)">&#x2715;</button>
+        </div>`;
+    }).join('');
+}
+
+function openHistory() {
+    renderHistory(document.getElementById('username').value.trim());
+    document.getElementById('username-wrap').classList.add('open');
+}
+
+function closeHistory() { document.getElementById('username-wrap').classList.remove('open'); }
+
+function selectHistUser(name) {
+    document.getElementById('username').value = name;
+    closeHistory();
+    startSearch();
+}
+
+function histRefresh(name, e) {
+    e.stopPropagation();
+    document.getElementById('username').value = name;
+    closeHistory();
+    startSearch({ refresh: true });
+}
+
+function histDelete(name, e) {
+    e.stopPropagation();
+    removeUser(name);
+    renderHistory(document.getElementById('username').value.trim());
+}
+
+document.getElementById('username').addEventListener('focus', openHistory);
+document.getElementById('username').addEventListener('input', () =>
+    renderHistory(document.getElementById('username').value.trim())
+);
+document.addEventListener('click', e => {
+    const userBtnEl = document.getElementById('user-btn');
+    const drawer    = document.getElementById('search-drawer');
+    if (!drawer.contains(e.target) && !userBtnEl.contains(e.target)) {
+        closeHistory();
+        if (drawer.classList.contains('open')) hideSearch();
+    }
+});
+
+// ── Control handlers ──────────────────────────────────────────────────────────
+function onMapStyle(name) {
+    ui.mapStyle = name;
+    map.getPanes().tilePane.style.filter = MAP_STYLES[name] || '';
+}
+function onTileOpacity(v) {
+    ui.tileOpacity = v / 100;
+    document.getElementById('v-tile-opacity').textContent = `${v}%`;
+    tileLayer.setOpacity(ui.tileOpacity);
+}
+function onHeatOpacity(v) {
+    ui.heatOpacity = v / 100;
+    document.getElementById('v-heat-opacity').textContent = `${v}%`;
+    heatPane.style.opacity = ui.heatOpacity;
+}
+function onHeatRadius(v) {
+    ui.heatRadius = +v;
+    document.getElementById('v-heat-radius').textContent = v;
+    if (heatLayer) heatLayer.setOptions({ radius: ui.heatRadius });
+}
+function onHeatBlur(v) {
+    ui.heatBlur = +v;
+    document.getElementById('v-heat-blur').textContent = v;
+    if (heatLayer) heatLayer.setOptions({ blur: ui.heatBlur });
+}
+function onColorScheme(name) {
+    ui.colorScheme = name;
+    updateGradPreview(name);
+    if (heatLayer) heatLayer.setOptions({ gradient: GRADIENTS[name] });
+}
+function onHotZoneToggle(checked) {
+    ui.hotZonesOn = checked;
+    checked ? renderHotZones() : hotZoneGroup.clearLayers();
+}
+function onThreshold(v) {
+    ui.threshold = +v;
+    document.getElementById('v-hz-threshold').textContent = v;
+    if (ui.hotZonesOn) renderHotZones();
+}
+function onGridSize(v) {
+    ui.gridDeg = v / 10;
+    document.getElementById('v-hz-grid').textContent = ui.gridDeg.toFixed(1) + '°';
+    if (ui.hotZonesOn) renderHotZones();
+}
+
+// ── Hot zones ─────────────────────────────────────────────────────────────────
+function renderHotZones() {
+    hotZoneGroup.clearLayers();
+    if (!ui.hotZonesOn || allPoints.length === 0) return;
+
+    // 1. Accumulate per-cell: count + sum of lat/lon for true centroid
+    const cells = new Map(); // key → { count, latSum, lonSum }
+    for (const [lat, lon] of allPoints) {
+        const key = `${Math.floor(lat / ui.gridDeg)},${Math.floor(lon / ui.gridDeg)}`;
+        const c = cells.get(key) || { count: 0, latSum: 0, lonSum: 0 };
+        c.count++;
+        c.latSum += lat;
+        c.lonSum += lon;
+        cells.set(key, c);
+    }
+
+    // 2. Keep only cells above threshold
+    const hot = new Map();
+    for (const [key, c] of cells) {
+        if (c.count >= ui.threshold) hot.set(key, c);
+    }
+
+    // 3. Flood-fill adjacent hot cells into clusters (4-connected)
+    const visited = new Set();
+    const clusters = [];
+    for (const key of hot.keys()) {
+        if (visited.has(key)) continue;
+        const stack = [key];
+        const group = [];
+        while (stack.length) {
+            const k = stack.pop();
+            if (visited.has(k) || !hot.has(k)) continue;
+            visited.add(k);
+            group.push(k);
+            const [r, c] = k.split(',').map(Number);
+            for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+                const nk = `${r+dr},${c+dc}`;
+                if (!visited.has(nk) && hot.has(nk)) stack.push(nk);
+            }
+        }
+        clusters.push(group);
+    }
+
+    // 4. Compute weighted centroid + total count for each cluster
+    let maxCount = 0;
+    for (const group of clusters) {
+        let totalCount = 0, latSum = 0, lonSum = 0;
+        for (const key of group) {
+            const c = hot.get(key);
+            totalCount += c.count;
+            latSum += c.latSum;
+            lonSum += c.lonSum;
+        }
+        maxCount = Math.max(maxCount, totalCount);
+        const centLat = latSum / totalCount;
+        const centLon = lonSum / totalCount;
+        const r = Math.max(6, Math.min(28, Math.sqrt(totalCount) * 2));
+
+        L.circleMarker([centLat, centLon], {
+            radius: r,
+            color: '#00eeff',
+            weight: 2,
+            fillColor: '#00eeff',
+            fillOpacity: 0.08,
+        }).bindTooltip(`${totalCount.toLocaleString()} changesets (${group.length} cell${group.length > 1 ? 's' : ''})`).addTo(hotZoneGroup);
+    }
+
+    if (maxCount > 0) {
+        const s = document.getElementById('hz-threshold');
+        s.max = Math.max(+s.max, maxCount);
+    }
+}
+
+// ── Heatmap update ────────────────────────────────────────────────────────────
+function applyPoints(pts, fitView) {
+    allPoints = pts;
+    if (!heatLayer) {
+        heatLayer = L.heatLayer(pts, {
+            radius: ui.heatRadius, blur: ui.heatBlur, maxZoom: 17,
+            gradient: GRADIENTS[ui.colorScheme], pane: 'heatPane',
+        }).addTo(map);
+        heatPane.style.opacity = ui.heatOpacity;
+    } else {
+        heatLayer.setLatLngs(pts);
+    }
+    if (fitView && pts.length > 0) {
+        map.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 12 });
+    }
+}
+
+// ── Fetch with per-request timeout ───────────────────────────────────────────
+function timedFetch(url, signal, ms = 8000) {
+    const timeoutCtrl = new AbortController();
+    const timerId = setTimeout(() => timeoutCtrl.abort(), ms);
+
+    let combined;
+    if (typeof AbortSignal.any === 'function') {
+        combined = AbortSignal.any([signal, timeoutCtrl.signal]);
+    } else {
+        const ctrl = new AbortController();
+        const fwd = (src, reason) => src.addEventListener('abort', () => ctrl.abort(reason), { once: true });
+        fwd(signal, signal.reason);
+        fwd(timeoutCtrl.signal, timeoutCtrl.signal.reason);
+        combined = ctrl.signal;
+    }
+
+    return fetch(url, { signal: combined })
+        .then(r => { clearTimeout(timerId); return r; })
+        .catch(err => {
+            clearTimeout(timerId);
+            if (timeoutCtrl.signal.aborted && !signal.aborted) {
+                const e = new Error(`Request timed out after ${ms / 1000}s — server may be slow or blocked`);
+                e.name = 'TimeoutError';
+                throw e;
+            }
+            throw err;
+        });
+}
+
+// ── Error classification ──────────────────────────────────────────────────────
+function classifyError(err, username) {
+    const m = (err.message || '').toLowerCase();
+    const onPreview = location.hostname === 'htmlpreview.github.io';
+
+    if (err.name === 'TimeoutError' || m.includes('timed out')) {
+        if (onPreview)
+            return 'Blocked by htmlpreview.github.io Content Security Policy — it prevents cross-origin requests. Host the file on GitHub Pages or open it locally to use the OSM API.';
+        return 'OSM API request timed out. The server may be slow or requests may be blocked on this network. Check the debug console for details.';
+    }
+    if (m.includes('failed to fetch') || m.includes('networkerror') ||
+        m.includes('load failed') || m.includes('network request failed')) {
+        if (onPreview)
+            return 'Blocked by htmlpreview.github.io Content Security Policy — it prevents cross-origin requests. Host the file on GitHub Pages or open it locally to use the OSM API.';
+        return 'Cannot reach OSM API — check your internet connection. Check the debug console for details.';
+    }
+    if (m.includes('csp') || m.includes('security policy') || m.includes('content security'))
+        return 'A Content Security Policy is blocking requests to the OSM API. Check the debug console for CSP details.';
+    if (m.includes('unreachable')) return err.message;
+    if (m.includes('404') || m.includes('not found'))
+        return `User "${username}" was not found on OpenStreetMap.`;
+    if (m.includes('429') || m.includes('too many'))
+        return 'Rate limited by OSM API — wait a moment and try again.';
+    return `Error: ${err.message}`;
+}
+
+function showMapMsg(msg) {
+    const el = document.getElementById('map-overlay-msg');
+    el.textContent = msg;
+    el.classList.add('visible');
+}
+function hideMapMsg() {
+    document.getElementById('map-overlay-msg').classList.remove('visible');
+}
+
+// ── Search orchestration ──────────────────────────────────────────────────────
+async function startSearch({ refresh = false } = {}) {
+    const username = document.getElementById('username').value.trim();
+    if (!username) return;
+
+    setStatus(`Searching for "${username}"…`);
+    loadingStart();
+    hideSearch();
+    document.activeElement?.blur();
+
+    if (activeAbort) activeAbort.abort();
+    activeAbort = new AbortController();
+    const { signal } = activeAbort;
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+
+    if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    hotZoneGroup.clearLayers();
+    allPoints = [];
+    hideMapMsg();
+
+    console.log(`Starting search for user: ${username} (refresh=${refresh})`);
+
+    try {
+        const cached = loadUser(username);
+        if (cached && !refresh) {
+            const pts = cached.changesets.map(c => [c.lat, c.lon]);
+            applyPoints(pts, true);
+            setStatus(`Showing ${pts.length.toLocaleString()} cached changesets — checking for updates…`);
+            await appendNew(username, cached, signal);
+        } else {
+            await fetchFull(username, signal);
+        }
+
+        if (signal.aborted) return;
+        if (allPoints.length === 0) {
+            const msg = `No geolocated changesets found for "${username}".`;
+            setStatus(msg);
+            showMapMsg(msg);
+        } else {
+            renderHotZones();
+            setStatus(`${refresh ? 'Refreshed' : 'Done'} — ${allPoints.length.toLocaleString()} changesets for "${username}".`);
+        }
+        loadingDone();
+        touchHistory(username);
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error(`Search failed: ${err.name}: ${err.message}`);
+        loadingDone();
+        const msg = classifyError(err, username);
+        setStatus(msg);
+        showMapMsg(msg);
+    } finally {
+        if (!signal.aborted) { btn.disabled = false; btn.textContent = 'Search'; }
+    }
+}
+
+// Full fetch: stream all pages, persist when done
+async function fetchFull(username, signal) {
+    const seen = new Set();
+    const collected = [];
+    let boundsSet = false;
+    let pageNum = 0;
+
+    for await (const pageData of changesetPages(username, signal)) {
+        pageNum++;
+        for (const cs of pageData) {
+            if (seen.has(cs.id)) continue;
+            seen.add(cs.id);
+            if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
+                collected.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
+        }
+        if (collected.length === 0) {
+            setStatus(`Page ${pageNum} — no geolocated changesets yet, continuing…`);
+            continue;
+        }
+        applyPoints(collected.map(c => [c.lat, c.lon]), !boundsSet);
+        if (!boundsSet) boundsSet = true;
+        setStatus(`Page ${pageNum} — ${collected.length.toLocaleString()} changesets loaded${pageData.length === 100 ? ', fetching more…' : ''}`);
+    }
+
+    if (!signal.aborted && collected.length > 0)
+        saveUser(username, { changesets: collected, fetchedAt: new Date().toISOString() });
+}
+
+// Incremental refresh: only fetch pages until we hit a changeset we already have
+async function appendNew(username, cached, signal) {
+    const knownIds = new Set(cached.changesets.map(c => c.id));
+    const added = [];
+    let pageNum = 0;
+
+    for await (const pageData of changesetPages(username, signal)) {
+        pageNum++;
+        setStatus(`Checking for new changesets (page ${pageNum})…`);
+        let allKnown = true;
+        for (const cs of pageData) {
+            if (knownIds.has(cs.id)) continue;
+            allKnown = false;
+            if (cs.min_lat != null && cs.max_lat != null && cs.min_lon != null && cs.max_lon != null)
+                added.push({ id: cs.id, lat: (cs.min_lat + cs.max_lat) / 2, lon: (cs.min_lon + cs.max_lon) / 2 });
+        }
+        if (allKnown) break;
+    }
+
+    if (signal.aborted) return;
+
+    if (added.length > 0) {
+        const merged = [...added, ...cached.changesets];
+        saveUser(username, { changesets: merged, fetchedAt: new Date().toISOString() });
+        applyPoints(merged.map(c => [c.lat, c.lon]), false);
+        setStatus(`Found ${added.length.toLocaleString()} new changesets — ${merged.length.toLocaleString()} total for "${username}".`);
+    } else {
+        setStatus(`Up to date — ${cached.changesets.length.toLocaleString()} changesets for "${username}".`);
+    }
+}
+
+// ── Changeset page generator ──────────────────────────────────────────────────
+async function* changesetPages(username, signal) {
+    let params = `display_name=${encodeURIComponent(username)}&limit=100`;
+    while (true) {
+        if (signal.aborted) return;
+        const url = `https://api.openstreetmap.org/api/0.6/changesets.json?${params}`;
+        console.log(`Fetching: ${url}`);
+        const resp = await timedFetch(url, signal);
+        console.log(`Response: ${resp.status} ${resp.statusText}`);
+        if (!resp.ok) throw new Error(`OSM API returned ${resp.status} ${resp.statusText}`);
+        const { changesets = [] } = await resp.json();
+        console.log(`Page returned ${changesets.length} changesets`);
+        yield changesets;
+        if (changesets.length < 100) return;
+        const last = changesets[changesets.length - 1];
+        const oldest = new Date(last.closed_at || last.created_at);
+        oldest.setSeconds(oldest.getSeconds() - 1);
+        // time=T1,T2 → changesets closed between T1 and T2; paginate backwards with an open lower bound
+        params = `display_name=${encodeURIComponent(username)}&limit=100&time=1970-01-01T00:00:00.000Z,${encodeURIComponent(oldest.toISOString())}`;
+    }
+}
+
+document.getElementById('username').addEventListener('keydown', e => {
+    if (e.key === 'Enter')  startSearch();
+    if (e.key === 'Escape') { closeHistory(); hideSearch(); }
+});
+
+// Close debug modal on backdrop click
+document.getElementById('debug-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('debug-modal')) toggleDebug();
+});
+
+// Init
+updateGradPreview(ui.colorScheme);
+heatPane.style.opacity = ui.heatOpacity;
+map.getPanes().tilePane.style.filter = MAP_STYLES[ui.mapStyle];
+console.log('OSM Edit Heatmap iteration7 loaded');
+</script>
+</body>
+</html>
