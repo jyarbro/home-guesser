@@ -756,6 +756,14 @@ document.addEventListener('click', e => {
         closeHistory();
         if (drawer.classList.contains('open')) hideSearch();
     }
+
+    const panel    = document.getElementById('panel');
+    const panelBtn = document.getElementById('panel-btn');
+    if (panel.classList.contains('open') && !panel.contains(e.target) && !panelBtn.contains(e.target)) {
+        panel.classList.remove('open');
+        panelBtn.classList.remove('active');
+        setTimeout(() => map.invalidateSize(), 230);
+    }
 });
 
 // ── Control handlers ──────────────────────────────────────────────────────────
