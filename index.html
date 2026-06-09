@@ -477,7 +477,7 @@
             <h3>Hot Zones</h3>
             <div class="trow">
                 <label class="toggle">
-                    <input type="checkbox" id="hz-toggle" onchange="onHotZoneToggle(this.checked)" />
+                    <input type="checkbox" id="hz-toggle" checked onchange="onHotZoneToggle(this.checked)" />
                     <span class="ttrack"></span>
                 </label>
                 <span class="tlabel">Show centroids</span>
@@ -578,7 +578,7 @@ let allPoints    = [];  // [[lat, lon], ...]
 
 const ui = {
     tileOpacity: 1.0, heatOpacity: 0.8, heatRadius: 25, heatBlur: 18,
-    colorScheme: 'Classic', hotZonesOn: false, threshold: 5, gridDeg: 1.0,
+    colorScheme: 'Classic', hotZonesOn: true, threshold: 5, gridDeg: 1.0,
     mapStyle: 'Dark',
 };
 
