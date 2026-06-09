@@ -28,7 +28,7 @@ Instead:
 2. Add a worktree: `git worktree add iterationN iterationN`
 3. Do all work inside `iterationN/`
 4. **Always** update the `gh-pages` landing page (`gh-pages/index.html`): add a new card at the top for iterationN and remove "(latest)" from the previous top card. Also copy `iterationN/index.html` into the `gh-pages` worktree so the live URL resolves.
-5. Add `iterationN/` to `.gitignore` on `main` so the worktree dir doesn't show as untracked.
+5. Add `iterationN/` to `.gitignore` on every active branch (including feature branches) so the worktree dir doesn't show as untracked. Also ensure `gh-pages/` is in `.gitignore` on every branch.
 6. Update `CLAUDE.md` on `main` with the new iteration's feature summary and live preview link.
 7. Commit and push: the `iterationN` branch, the `gh-pages` branch, and the `main` branch.
 
