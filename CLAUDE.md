@@ -27,9 +27,10 @@ Instead:
 1. Create a new branch from the previous iteration: `git branch iterationN iterationN-1`
 2. Add a worktree: `git worktree add iterationN iterationN`
 3. Do all work inside `iterationN/`
-4. **Always** update `README.md` on `main` with the new iteration's live preview link and feature summary.
+4. **Always** update the `gh-pages` landing page (`gh-pages/index.html`): add a new card at the top for iterationN and remove "(latest)" from the previous top card. Also copy `iterationN/index.html` into the `gh-pages` worktree so the live URL resolves.
 5. Add `iterationN/` to `.gitignore` on `main` so the worktree dir doesn't show as untracked.
-6. Commit and push both the `iterationN` branch and the `main` branch.
+6. Update `CLAUDE.md` on `main` with the new iteration's feature summary and live preview link.
+7. Commit and push: the `iterationN` branch, the `gh-pages` branch, and the `main` branch.
 
 Even small bug fixes that affect correctness should go into a new iteration — err on the side of incrementing.
 
