@@ -12,6 +12,7 @@ home-guesser/
   iteration4/     ← worktree for branch `iteration4`
   iteration5/     ← worktree for branch `iteration5`
   iteration6/     ← worktree for branch `iteration6`
+  iteration7/     ← worktree for branch `iteration7`
   CLAUDE.md       ← on branch `main`
 ```
 
@@ -73,6 +74,13 @@ Even small bug fixes that affect correctness should go into a new iteration — 
 - "Map style" dropdown in Controls panel: Dark (default), Grayscale, Light
 - Filter applied directly to `map.getPanes().tilePane.style.filter` — zero extra requests, works with any tile source
 
+### iteration7 — centroid hotspot placement
+- Replaces grid-cell-center markers with true data centroids: each hot zone's marker is placed at the weighted mean lat/lon of all changesets in that zone
+- Flood-fill consolidation: adjacent grid cells that both pass the threshold are merged into a single cluster; only one centroid per connected region (prevents marker clutter in dense areas)
+- Outline-style circle markers: thin cyan stroke with near-transparent fill so the centroid sits clearly over the heatmap without obscuring it
+- Tooltip shows total changeset count and number of merged cells per cluster
+- Threshold slider still adjustable; grid size still adjustable — both re-cluster in real time
+
 ### iteration5 — pagination fix
 - Fixed infinite loop in `changesetPages`: `time=T1` (OSM API means "closed after T1") caused the same page to be re-fetched forever; changed to `time=epoch,T1` range format to page backwards through history
 - Uses `closed_at` (with `created_at` fallback) as the cursor, matching the OSM API sort order
@@ -103,3 +111,4 @@ Even small bug fixes that affect correctness should go into a new iteration — 
 | iteration4 | https://htmlpreview.github.io/?https://github.com/jyarbro/home-guesser/blob/iteration4/index.html |
 | iteration5 | https://yarbro.me/home-guesser/iteration5/ |
 | iteration6 | https://yarbro.me/home-guesser/iteration6/ |
+| iteration7 | https://yarbro.me/home-guesser/iteration7/ |
