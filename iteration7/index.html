@@ -485,7 +485,7 @@
             <div class="crow"><label>Min changesets</label><span class="val" id="v-hz-threshold">5</span></div>
             <input type="range" id="hz-threshold" min="1" max="100" value="5" oninput="onThreshold(this.value)" />
             <div class="crow"><label>Grid size</label><span class="val" id="v-hz-grid">0.2°</span></div>
-            <input type="range" id="hz-grid" min="1" max="30" value="2" oninput="onGridSize(this.value)" />
+            <input type="range" id="hz-grid" min="1" max="100" value="67" oninput="onGridSize(this.value)" />
         </div>
     </div>
 </div>
@@ -798,8 +798,11 @@ function onThreshold(v) {
     if (ui.hotZonesOn) renderHotZones();
 }
 function onGridSize(v) {
-    ui.gridDeg = v / 10;
-    document.getElementById('v-hz-grid').textContent = ui.gridDeg.toFixed(1) + '°';
+    // logarithmic: slider 1-100 maps to 0.001°–3.0°
+    ui.gridDeg = Math.pow(10, -3 + (v - 1) / 99 * Math.log10(3000));
+    const d = ui.gridDeg;
+    const label = d >= 0.1 ? d.toFixed(1) + '°' : d >= 0.01 ? d.toFixed(2) + '°' : d.toFixed(3) + '°';
+    document.getElementById('v-hz-grid').textContent = label;
     if (ui.hotZonesOn) renderHotZones();
 }
 
