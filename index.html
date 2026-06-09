@@ -807,24 +807,72 @@ function onGridSize(v) {
 function renderHotZones() {
     hotZoneGroup.clearLayers();
     if (!ui.hotZonesOn || allPoints.length === 0) return;
-    const counts = new Map();
+
+    // 1. Accumulate per-cell: count + sum of lat/lon for true centroid
+    const cells = new Map(); // key → { count, latSum, lonSum }
     for (const [lat, lon] of allPoints) {
         const key = `${Math.floor(lat / ui.gridDeg)},${Math.floor(lon / ui.gridDeg)}`;
-        counts.set(key, (counts.get(key) || 0) + 1);
+        const c = cells.get(key) || { count: 0, latSum: 0, lonSum: 0 };
+        c.count++;
+        c.latSum += lat;
+        c.lonSum += lon;
+        cells.set(key, c);
     }
+
+    // 2. Keep only cells above threshold
+    const hot = new Map();
+    for (const [key, c] of cells) {
+        if (c.count >= ui.threshold) hot.set(key, c);
+    }
+
+    // 3. Flood-fill adjacent hot cells into clusters (4-connected)
+    const visited = new Set();
+    const clusters = [];
+    for (const key of hot.keys()) {
+        if (visited.has(key)) continue;
+        const stack = [key];
+        const group = [];
+        while (stack.length) {
+            const k = stack.pop();
+            if (visited.has(k) || !hot.has(k)) continue;
+            visited.add(k);
+            group.push(k);
+            const [r, c] = k.split(',').map(Number);
+            for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+                const nk = `${r+dr},${c+dc}`;
+                if (!visited.has(nk) && hot.has(nk)) stack.push(nk);
+            }
+        }
+        clusters.push(group);
+    }
+
+    // 4. Compute weighted centroid + total count for each cluster
     let maxCount = 0;
-    for (const [key, count] of counts) {
-        if (count < ui.threshold) continue;
-        maxCount = Math.max(maxCount, count);
-        const [r, c] = key.split(',').map(Number);
-        L.circleMarker([(r + 0.5) * ui.gridDeg, (c + 0.5) * ui.gridDeg], {
-            radius: Math.max(5, Math.min(20, Math.sqrt(count) * 1.8)),
-            color: '#cc1100', fillColor: '#ff3322', fillOpacity: 0.75, weight: 1.5,
-        }).bindTooltip(`${count} changesets`).addTo(hotZoneGroup);
+    for (const group of clusters) {
+        let totalCount = 0, latSum = 0, lonSum = 0;
+        for (const key of group) {
+            const c = hot.get(key);
+            totalCount += c.count;
+            latSum += c.latSum;
+            lonSum += c.lonSum;
+        }
+        maxCount = Math.max(maxCount, totalCount);
+        const centLat = latSum / totalCount;
+        const centLon = lonSum / totalCount;
+        const r = Math.max(6, Math.min(28, Math.sqrt(totalCount) * 2));
+
+        L.circleMarker([centLat, centLon], {
+            radius: r,
+            color: '#00eeff',
+            weight: 2,
+            fillColor: '#00eeff',
+            fillOpacity: 0.08,
+        }).bindTooltip(`${totalCount.toLocaleString()} changesets (${group.length} cell${group.length > 1 ? 's' : ''})`).addTo(hotZoneGroup);
     }
+
     if (maxCount > 0) {
         const s = document.getElementById('hz-threshold');
-        s.max   = Math.max(s.max, maxCount);
+        s.max = Math.max(+s.max, maxCount);
     }
 }
 
@@ -1063,7 +1111,7 @@ document.getElementById('debug-modal').addEventListener('click', e => {
 updateGradPreview(ui.colorScheme);
 heatPane.style.opacity = ui.heatOpacity;
 map.getPanes().tilePane.style.filter = MAP_STYLES[ui.mapStyle];
-console.log('OSM Edit Heatmap iteration6 loaded');
+console.log('OSM Edit Heatmap iteration7 loaded');
 </script>
 </body>
 </html>
