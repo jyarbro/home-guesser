@@ -484,8 +484,8 @@
             </div>
             <div class="crow"><label>Min changesets</label><span class="val" id="v-hz-threshold">5</span></div>
             <input type="range" id="hz-threshold" min="1" max="100" value="5" oninput="onThreshold(this.value)" />
-            <div class="crow"><label>Grid size</label><span class="val" id="v-hz-grid">1.0°</span></div>
-            <input type="range" id="hz-grid" min="1" max="30" value="10" oninput="onGridSize(this.value)" />
+            <div class="crow"><label>Grid size</label><span class="val" id="v-hz-grid">0.2°</span></div>
+            <input type="range" id="hz-grid" min="1" max="30" value="2" oninput="onGridSize(this.value)" />
         </div>
     </div>
 </div>
@@ -578,7 +578,7 @@ let allPoints    = [];  // [[lat, lon], ...]
 
 const ui = {
     tileOpacity: 1.0, heatOpacity: 0.8, heatRadius: 25, heatBlur: 18,
-    colorScheme: 'Classic', hotZonesOn: true, threshold: 5, gridDeg: 1.0,
+    colorScheme: 'Classic', hotZonesOn: true, threshold: 5, gridDeg: 0.2,
     mapStyle: 'Dark',
 };
 
